@@ -4,7 +4,7 @@ import { useStore } from '../../app/src/store';
 import { C } from '../../app/src/theme';
 import { AppBar, Badge, Block, Card, Cols, Note, Row, Stack, SubButton, TextButton, Txt } from '../../app/src/ui';
 import { createConnectedSettings } from '../auth/settings';
-import { loginProviders } from '../auth/flow';
+import { isLoginEnabled, loginProviders } from '../auth/flow';
 import { externalBrowserMessage, needsExternalBrowser } from '../auth/browser-environment';
 import { lastUpdatedLabel, linkStatusLabels, type LinkStatus } from '../../packages/integrations/src/link-status';
 
@@ -52,10 +52,10 @@ export function ConnectedSettingsScreen() {
           const userId = state.userId;
           if (await confirm('ログアウトしますか？') && controller.getSnapshot().userId === userId) await controller.logout();
         }} /> : <>
-          <Note>Discord・Google・Steam・Appleからログイン方法を選べます。情報の連携は、ログイン後に別の操作で行います。</Note>
+          <Note>Discord・Google・Steamからログイン方法を選べます。情報の連携は、ログイン後に別の操作で行います。</Note>
           <Row gap={8} wrap>{loginProviders.map(provider => <SubButton key={provider}
             label={state.busy === `login:${provider}` ? `${names[provider]}を開いています…` : `${names[provider]}でログイン`}
-            disabled={disabled || (provider === 'google' && embedded)} onPress={() => { void controller.login(provider); }} />)}</Row>
+            disabled={disabled || !isLoginEnabled(provider) || (provider === 'google' && embedded)} onPress={() => { void controller.login(provider); }} />)}</Row>
         </>}
         {state.message ? <View accessibilityRole="alert"><Txt size={14}>{state.message}</Txt></View> : null}
       </Stack></Card>

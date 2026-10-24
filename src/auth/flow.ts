@@ -1,8 +1,14 @@
 export type LoginProvider = 'discord' | 'google' | 'steam' | 'apple';
 export type OAuthProvider = 'discord' | 'google' | 'custom:steam' | 'apple';
 export const loginProviders: readonly LoginProvider[] = ['discord', 'google', 'steam', 'apple'];
+// Apple は画面に置くだけで、ログインは始めない（仕様の ADR-84、Q-31。Apple Developer Program の登録が要る）
+export const disabledLoginProviders: readonly LoginProvider[] = ['apple'];
+export function isLoginEnabled(provider: LoginProvider): boolean {
+  return loginProviders.includes(provider) && !disabledLoginProviders.includes(provider);
+}
 export function oauthProvider(provider: LoginProvider): OAuthProvider {
   if (!loginProviders.includes(provider)) throw new AuthFlowError('provider');
+  if (!isLoginEnabled(provider)) throw new AuthFlowError('disabled');
   return provider === 'steam' ? 'custom:steam' : provider;
 }
 export interface AuthUser { id: string; is_anonymous?: boolean }
@@ -13,7 +19,7 @@ export interface AuthPort {
   signOut(): Promise<{ error: unknown }>;
 }
 export class AuthFlowError extends Error {
-  code: 'provider' | 'callback' | 'unauthenticated';
+  code: 'provider' | 'disabled' | 'callback' | 'unauthenticated';
   constructor(code: AuthFlowError['code']) { super(`Authentication failed (${code})`); this.name = 'AuthFlowError'; this.code = code; }
 }
 

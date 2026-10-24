@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createAuthFlow, parseAuthCallback, requireRegisteredUser, type AuthPort, type LoginProvider } from '../src/auth/flow.ts';
+import { AuthFlowError, createAuthFlow, isLoginEnabled, loginProviders, parseAuthCallback, requireRegisteredUser, type AuthPort, type LoginProvider } from '../src/auth/flow.ts';
 
 const redirect = 'https://example.test/auth/callback';
 function fakeAuth(): AuthPort {
@@ -11,8 +11,8 @@ function fakeAuth(): AuthPort {
     signOut: async () => ({ error: null }),
   };
 }
-test('All four logins use Supabase PKCE; Steam uses the verified custom provider', async () => {
-  for (const provider of ['discord', 'google', 'steam', 'apple'] as const) {
+test('Discord, Google and Steam logins use Supabase PKCE; Steam uses the verified custom provider', async () => {
+  for (const provider of ['discord', 'google', 'steam'] as const) {
     const auth = fakeAuth();
     auth.signInWithOAuth = async input => {
       assert.deepEqual(input, { provider: provider === 'steam' ? 'custom:steam' : provider, options: { redirectTo: redirect, skipBrowserRedirect: true } });
@@ -22,6 +22,18 @@ test('All four logins use Supabase PKCE; Steam uses the verified custom provider
     assert.deepEqual(await flow.signIn(provider), { status: 'authenticated', user: { id: 'user-a' } });
     await assert.rejects(flow.signIn('unknown' as LoginProvider));
   }
+});
+test('Apple login is shown but never starts (ADR-84)', async () => {
+  const auth = fakeAuth();
+  let started = 0;
+  auth.signInWithOAuth = async () => { started++; return { data: { url: 'https://project.supabase.co/auth/v1/authorize' }, error: null }; };
+  let opened = 0;
+  const flow = createAuthFlow(auth, redirect, async () => { opened++; return `${redirect}?code=auth-code`; });
+  assert.equal(isLoginEnabled('apple'), false);
+  assert.ok(loginProviders.includes('apple'));
+  await assert.rejects(flow.signIn('apple'), (error: unknown) => error instanceof AuthFlowError && error.code === 'disabled');
+  assert.equal(started, 0);
+  assert.equal(opened, 0);
 });
 test('Callback rejects foreign hosts, duplicate codes, URL fragments and provider errors', () => {
   for (const url of ['https://attacker.test/auth/callback?code=a', `${redirect}?code=a&code=b`, `${redirect}?code=a#access_token=secret`, `${redirect}?error=access_denied`, `${redirect}?code=a&sb_flow_id=`]) {

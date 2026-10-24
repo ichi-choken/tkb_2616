@@ -30,11 +30,22 @@ test('unconfigured and cancelled login cannot become authenticated', async () =>
   assert.equal(unconfigured.getSnapshot().configured, false);
   assert.equal(unconfigured.getSnapshot().userId, null);
   const { controller, stop } = setup();
-  for (const provider of ['discord', 'google', 'steam', 'apple'] as const) {
+  for (const provider of ['discord', 'google', 'steam'] as const) {
     await controller.login(provider);
     assert.equal(controller.getSnapshot().userId, null);
     assert.match(controller.getSnapshot().message, /キャンセル/);
   }
+  stop();
+});
+
+test('Apple login does nothing: no browser, no message (ADR-84)', async () => {
+  let started = 0;
+  const { controller, stop } = setup({ signIn: async () => { started++; return 'completed'; } });
+  await controller.login('apple');
+  assert.equal(started, 0);
+  assert.equal(controller.getSnapshot().userId, null);
+  assert.equal(controller.getSnapshot().busy, null);
+  assert.equal(controller.getSnapshot().message, '');
   stop();
 });
 

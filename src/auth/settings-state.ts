@@ -1,4 +1,4 @@
-import type { LoginProvider } from './flow.ts';
+import { isLoginEnabled, type LoginProvider } from './flow.ts';
 import type { LinkStatus } from '../../packages/integrations/src/link-status.ts';
 
 export type BrowserResult = 'completed' | 'cancelled' | 'redirecting';
@@ -81,7 +81,7 @@ export function createSettingsController(port: SettingsPort | null, configuratio
     },
     refresh,
     login(provider: LoginProvider) {
-      if (state.userId) return Promise.resolve();
+      if (state.userId || !isLoginEnabled(provider)) return Promise.resolve();
       return run(`login:${provider}`, async () => {
         const result = await port!.signIn(provider);
         return result === 'cancelled' ? 'ログインをキャンセルしました。' : result === 'redirecting' ? 'ログインページへ移動しています。' : '';

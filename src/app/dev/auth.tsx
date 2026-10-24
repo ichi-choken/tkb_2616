@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Button, Text, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import { getSupabase } from '../../lib/supabase';
-import { loginProviders } from '../../auth/flow';
+import { isLoginEnabled, loginProviders } from '../../auth/flow';
 import { lastUpdatedLabel, linkStatusLabels } from '../../../packages/integrations/src/link-status';
 import { signIn, authErrorMessage, signOut } from '../../auth';
 import { registerPush } from '../../notifications/push';
@@ -33,7 +33,7 @@ export default function AuthDiagnostics() {
     <Text style={{ fontSize: 22, fontWeight: '600' }}>開発用・認証の接続確認</Text>
     <Text>{ready ? (userId ? 'ログイン済み' : '未ログイン') : '.env に Supabase の URL と公開用キーを設定してください。'}</Text>
     {userId && <Text selectable>利用者ID：{userId}</Text>}
-    {loginProviders.map(provider => <Button key={provider} title={`${{ discord: 'Discord', google: 'Google', steam: 'Steam', apple: 'Apple' }[provider]}でログイン`} disabled={!ready || busy || !!userId} onPress={() => run(() => signIn(provider))} />)}
+    {loginProviders.map(provider => <Button key={provider} title={`${{ discord: 'Discord', google: 'Google', steam: 'Steam', apple: 'Apple' }[provider]}でログイン`} disabled={!ready || busy || !!userId || !isLoginEnabled(provider)} onPress={() => run(() => signIn(provider))} />)}
     <Button title="ログアウト" disabled={!userId || busy} onPress={() => run(signOut)} />
     <Button title="Steamと連携" disabled={!userId || busy} onPress={() => run(() => linkAccount('steam'))} />
     <Button title="Discordの情報を連携" disabled={!userId || busy} onPress={() => run(() => linkAccount('discord'))} />

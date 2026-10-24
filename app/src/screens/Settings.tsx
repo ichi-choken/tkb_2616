@@ -201,7 +201,8 @@ function AccountBlock({ inApp, onOpenBrowser }: { inApp: boolean; onOpenBrowser:
               <LoginButton icon="logo-discord" label="Discordでログイン" onPress={() => login('discord')} />
               <LoginButton icon="logo-google" label="Googleでログイン" onPress={() => login('google')} />
               <LoginButton icon="logo-steam" label="Steamでログイン" onPress={() => login('steam')} />
-              <LoginButton icon="logo-apple" label="Appleでログイン" onPress={() => login('apple')} />
+              {/* Apple は画面に置くだけで、ログインは始めない（仕様の ADR-84、Q-31） */}
+              <LoginButton icon="logo-apple" label="Appleでログイン" disabled onPress={() => {}} />
             </Row>
             {st.googleStep ? (
               <Card pad style={{ backgroundColor: C.warnBg }}>
@@ -221,11 +222,11 @@ function AccountBlock({ inApp, onOpenBrowser }: { inApp: boolean; onOpenBrowser:
   );
 }
 
-function LoginButton({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
+function LoginButton({ icon, label, onPress, disabled }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; disabled?: boolean }) {
   const { s } = useLayout();
   return (
     <View style={{ position: 'relative' }}>
-      <SubButton label={`   ${label}`} onPress={onPress} />
+      <SubButton label={`   ${label}`} onPress={onPress} disabled={disabled} />
       <View pointerEvents="none" style={{ position: 'absolute', left: s(12), top: 0, bottom: 0, justifyContent: 'center' }}>
         <Ionicons name={icon} size={s(16)} color={C.ink} />
       </View>
