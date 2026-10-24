@@ -2,6 +2,8 @@
 
 更新日：2026-10-24。製品リポジトリは `jphacks/tkb_2616`、仕様は `Umi-s-Atelie/hobby-platform`。この文書は3人の担当AIが並行作業するための接続指示です。
 
+**最新の担当変更：①のAIが不在となったため、次のAIが①フロントエンドと③認証・外部連携を兼任する。②DBは別担当。まず [次のAIへの引き継ぎ](next-ai-handoff.md) を読むこと。**
+
 初回レビューの①②向け修正指示は [ai-review-followups.md](ai-review-followups.md) を読むこと。
 
 ## 全担当が最初に読むこと
@@ -97,7 +99,7 @@
 
 ②が確定した通知イベントを `notification-delivery` の `send` へ渡す。payload型は `packages/integrations/src/notifications.ts`。同じevent IDで再送し、`nextDeviceCursor` があれば続きを送る。定期的に `tick` を呼び、receipt確認・再試行を進める。`accepted` は配送サービスの受付であり、利用者への到達や既読ではない。部屋番号・招待URL・ゲーム内IDをロック画面のpayloadへ入れない。
 
-Webは本ブランチではserver出力。mainの静的デモと同じ手順で公開できると断言しない。公開先・app identifiersは①②と合わせ、環境変数を指定してビルドする。開発用とデモ／本番用はチームが用意する別環境にする。
+統合版のWebはSPA（single）出力。公開先には認証callbackなどをindex.htmlへ戻す設定が必要。既存Pagesのデモ出力とは起動・ビルド手順を区別する。公開先・app identifiersは①②と合わせ、環境変数を指定してビルドする。開発用とデモ／本番用はチームが用意する別環境にする。
 
 ## 検証と未完了事項
 
@@ -110,7 +112,7 @@ npm run doctor:config
 
 - `npm run check` は型・テスト・Edge型・Web出力を検証する。外部APIは差し替え、SQLはローカルのPGliteで検証する。個人Supabaseは使わない。
 - 実アカウントの4方式ログイン、実API、実通知、クラウド公開は未確認。設定後にキャンセル、二重callback、無効なstate、解除中の更新、古い通知タップを含めて確認する。
-- 本ブランチだけで、①の最新画面と②の最新DBまで動いたことにしない。配置調整・SQL取り込み・チーム接続先設定後に3担当の動線を結合検証する。
+- 画面・DBコードの配置統合は完了済みだが、画面はデモ状態管理のまま。追加SQL取り込み・チーム接続先設定後に、①③を兼任するAIと②で実環境の動線を結合検証する。
 - 設定不足は `doctor:config` が項目名だけを表示する。プロバイダーの管理画面の設定完了は別に確認する。
 - 既知のExpo CLIの依存警告（node-forge、zod）は前回から残る。SDKを無条件に下げたりmajor版を強制置換しない。公式の修正版が出たら範囲を確認して更新する。
 
