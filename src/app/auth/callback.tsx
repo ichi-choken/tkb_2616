@@ -3,6 +3,7 @@ import { Link, router } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { Platform, Text, View } from 'react-native';
 import { getAuthFlow, authErrorMessage } from '../../auth';
+import { takeReturn } from '../../live/return-to';
 
 export default function AuthCallback() {
   const url = Linking.useURL();
@@ -12,7 +13,11 @@ export default function AuthCallback() {
     if (!callback) return;
     let active = true;
     Promise.resolve().then(() => getAuthFlow().complete(callback)).then(() => {
-      if (active) router.replace('/');
+      if (!active) return;
+      // Back to the screen that asked for the sign-in (a recruitment link, for example)
+      const back = takeReturn();
+      if (back) window.location.replace(`/${back}`);
+      else router.replace('/');
     }).catch(err => { if (active) setError(authErrorMessage(err)); });
     return () => { active = false; };
   }, [url]);

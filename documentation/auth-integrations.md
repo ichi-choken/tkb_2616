@@ -27,6 +27,7 @@
 | 任意の情報連携 | `src/auth/links.ts` の `linkAccount` / `completeAccountLink` / `unlinkAccount` / `linkedAccounts` |
 | 連携状態の表示 | `packages/integrations/src/link-status.ts` の `LinkStatus` / `linkStatusLabels` / `lastUpdatedLabel` |
 | ゲーム検索 | `src/lib/games.ts` の `searchGames`。候補を選んだら `saveGame(id)` で `games` に保存してから、その `id` で募集を出す（保存はログインが要る。IGDBに届かないときは、保存済みのゲームならそのまま返る） |
+| 募集・一覧・参加希望・承認・成立 | `src/live/screens.tsx`（DBとのやり取りは `src/live/api.ts`）。接続先（`EXPO_PUBLIC_SUPABASE_URL` と公開用の鍵）があるときだけ、`src/app/index.tsx` が `app/` の見本の画面と差し替える。無いとき（`app/` 単独・Pages）は見本のまま。募集のリンクは `#/list?r=<募集のID>`。アプリ版から共有するリンクの公開先は `EXPO_PUBLIC_APP_URL` |
 | Steamの信頼の目安 | `src/lib/trust.ts` の `steamTrustOf(userIds, gameIds)`。ログインなしで読める。アカウントの年数・Steamレベル・そのゲームを持っているか・プレイ時間（server-41）と最終取得成功時刻を返す。Steam連携の無い人は結果に入らない。`owned` は「持っている」か「分からない」だけで、「持っていない」とは返さない（EXT-Steam-2） |
 | 通知の有効化・タップ | `src/notifications/push.ts`。通知本文は最新の部屋情報の代わりに使わない |
 

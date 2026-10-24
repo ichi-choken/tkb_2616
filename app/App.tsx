@@ -23,7 +23,10 @@ export default function App() {
   return <ShumitomoApp />;
 }
 
-export function ShumitomoApp({ settingsScreen = SettingsScreen }: { settingsScreen?: ComponentType }) {
+// 接続先があるとき、募集・一覧・参加の画面を本物のデータの画面に差し替える（ルートの src/live/screens.tsx）
+export type LiveScreens = Partial<Record<'recruit' | 'create' | 'requests' | 'list' | 'matched', ComponentType<{ params: Record<string, string> }>>>;
+
+export function ShumitomoApp({ settingsScreen = SettingsScreen, liveScreens }: { settingsScreen?: ComponentType; liveScreens?: LiveScreens }) {
   const { design } = useLayout();
   const [loaded] = useFonts({
     DelaGothicOne_400Regular,
@@ -35,14 +38,14 @@ export function ShumitomoApp({ settingsScreen = SettingsScreen }: { settingsScre
   return (
     <SafeAreaProvider>
       <StoreProvider>
-        <Shell settingsScreen={settingsScreen} />
+        <Shell settingsScreen={settingsScreen} liveScreens={liveScreens} />
         <StatusBar style={design.dark ? 'light' : 'dark'} />
       </StoreProvider>
     </SafeAreaProvider>
   );
 }
 
-function Shell({ settingsScreen }: { settingsScreen: ComponentType }) {
+function Shell({ settingsScreen, liveScreens }: { settingsScreen: ComponentType; liveScreens?: LiveScreens }) {
   const { s: st } = useStore();
   const { s, wide } = useLayout();
   const route = resolveRoute(st);
@@ -57,7 +60,7 @@ function Shell({ settingsScreen }: { settingsScreen: ComponentType }) {
       <DemoBar />
       <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: s(36) }} keyboardShouldPersistTaps="handled">
         <View style={{ width: '100%', maxWidth: 1240, alignSelf: 'center', paddingHorizontal: s(wide ? 32 : 18) }}>
-          <Screen settingsScreen={settingsScreen} />
+          <Screen settingsScreen={settingsScreen} liveScreens={liveScreens} />
         </View>
       </ScrollView>
       <TabBar current={ROUTE_TAB[route.name]} />
@@ -66,8 +69,10 @@ function Shell({ settingsScreen }: { settingsScreen: ComponentType }) {
   );
 }
 
-function Screen({ settingsScreen: Settings }: { settingsScreen: ComponentType }) {
+function Screen({ settingsScreen: Settings, liveScreens }: { settingsScreen: ComponentType; liveScreens?: LiveScreens }) {
   const { s: st } = useStore();
+  const Live = liveScreens?.[st.route.name as keyof LiveScreens];
+  if (Live) return <Live params={st.route.params ?? {}} />;
   const { name, params } = resolveRoute(st);
   switch (name) {
     case 'profile': return <ProfileScreen />;
