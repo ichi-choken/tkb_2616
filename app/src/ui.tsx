@@ -65,17 +65,23 @@ export function Grid({ children }: { children: ReactNode[] }) {
 
 /* ---------- 見出しとカード ---------- */
 
-export function AppBar({ title, right, onBack, lead, subtitle }: { title: string; right?: ReactNode; onBack?: () => void; lead?: ReactNode; subtitle?: string }) {
+// 画面の見出しの文字の大きさ。見出しにほかの列をそろえるときにも使う
+export const appBarTitleSize = (designId: string, wide: boolean) => (designId === 'play' ? 21 : wide ? 27 : 25);
+// AppBar の上の余白
+export const appBarTop = (wide: boolean) => (wide ? 32 : 24);
+
+// rightNextToTitle：right を右端ではなく、見出しのすぐ右に置く
+export function AppBar({ title, right, onBack, lead, subtitle, rightNextToTitle }: { title: string; right?: ReactNode; onBack?: () => void; lead?: ReactNode; subtitle?: string; rightNextToTitle?: boolean }) {
   const { s, wide, design } = useLayout();
   return (
-    <Stack gap={5} style={{ paddingTop: s(wide ? 32 : 24), paddingBottom: s(10) }}>
+    <Stack gap={5} style={{ paddingTop: s(appBarTop(wide)), paddingBottom: s(10) }}>
       <Row gap={12} style={{ alignItems: 'center' }}>
         {onBack ? <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="戻る" hitSlop={8}
           style={({ pressed }) => ({ width: s(36), height: s(36), borderRadius: s(12), borderWidth: 1, borderColor: C.line, backgroundColor: pressed ? C.accentSoft : C.card, alignItems: 'center', justifyContent: 'center' })}>
           <Feather name="arrow-left" size={s(17)} color={C.ink} />
         </Pressable> : null}
         {lead}
-        <Txt size={design.id === 'play' ? 21 : wide ? 27 : 25} weight="display" style={{ flex: 1 }}>{title}</Txt>
+        <Txt size={appBarTitleSize(design.id, wide)} weight="display" style={rightNextToTitle ? { flexShrink: 1 } : { flex: 1 }}>{title}</Txt>
         {right}
       </Row>
       {subtitle ? <Txt size={13} color={C.muted}>{subtitle}</Txt> : null}

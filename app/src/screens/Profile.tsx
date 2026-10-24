@@ -12,7 +12,7 @@ import { steamProfileVisible } from '../demo-settings-state';
 import { AddModal, type AddKind } from '../AddModal';
 import { C, useLayout } from '../theme';
 import {
-  AppBar, Art, Avatar, Block, Card, Chip, Cols, Divider, Empty, Field, HeatSlider, HeatTag, MainButton,
+  AppBar, Art, Avatar, Block, Card, Chip, Cols, Divider, Empty, Field, HeatSlider, HeatTag, MainButton, appBarTitleSize, appBarTop,
   MiniButton, Note, Opts, PillButton, RightsNote, Row, SkillSlider, Stack, SubButton, TextButton, Trust, Txt,
 } from '../ui';
 
@@ -23,11 +23,15 @@ export function ProfileScreen() {
   return st.draft ? <ProfileEdit /> : <ProfileView />;
 }
 
+// 広い画面で、ゲームの列の上に空ける高さ。「ゲーム」の行の真ん中を、見出し「プロフィール」の行の真ん中にそろえる。
+// 見出しの行の真ん中は「上の余白 + 文字の行の高さ（大きさ×1.65）の半分」。「ゲーム」の行は、空けた高さから約35下に真ん中がある
+const gamesTop = (designId: string) => appBarTop(true) + (appBarTitleSize(designId, true) * 1.65) / 2 - 35;
+
 function ProfileView() {
   const { s: st, update, editProfile, go, copy, toast, open } = useStore();
   const settings = useSyncExternalStore(demoSettings.subscribe, demoSettings.getSnapshot, demoSettings.getSnapshot);
   const [adding, setAdding] = useState<AddKind | null>(null);
-  const { wide } = useLayout();
+  const { wide, s, design } = useLayout();
   const p = st.me;
 
   // 熱量・実力はスライダーでその場で直せる（profile-5）。部品ごとに保存する（ui-1）
@@ -65,11 +69,16 @@ function ProfileView() {
     </>
   );
 
+  // 「IDで探す」は見出しのすぐ右に置く。広い画面では見出しを左の列に入れ、ゲームの列を見出しと同じ高さから始める
+  const appBar = <AppBar title="プロフィール" subtitle="あなたの「好き」を、仲間へのきっかけに。" rightNextToTitle
+    right={<MiniButton label="IDで探す" onPress={() => go('search-id')} />} />;
+
   return (
     <Stack>
-      <AppBar title="プロフィール" subtitle="あなたの「好き」を、仲間へのきっかけに。" right={<MiniButton label="IDで探す" onPress={() => go('search-id')} />} />
+      {wide ? null : appBar}
       <Cols
         left={<>
+          {wide ? appBar : null}
           <WhoCard p={p} right={<SubButton label="編集" onPress={() => update((d) => { d.draft = JSON.parse(JSON.stringify(d.me)); d.saveError = false; })} />}>
             <Row gap={6} wrap>
               <Note>アプリID</Note>
@@ -82,6 +91,8 @@ function ProfileView() {
           {wide ? hobbiesAndLikes : null}
         </>}
         right={<>
+          {/* 見出し（AppBar）と同じだけ上を空け、「ゲーム」の行を「プロフィール」の行にそろえる */}
+          {wide ? <View style={{ height: s(gamesTop(design.id)) }} /> : null}
           <Block title="ゲーム" count={p.games.length} right={<MiniButton label="＋ 追加" onPress={() => setAdding('games')} />}>
             {p.games.length ? p.games.map((g, i) => (
               <GameCard key={g.tag} g={g} showSteam={steamProfileVisible(settings)}

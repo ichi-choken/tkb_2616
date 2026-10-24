@@ -306,11 +306,12 @@ function LinkBlock({ service, inApp, onOpenBrowser }: { service: Service; inApp:
               <Note>{service === 'steam'
                 ? '連携すると、持っているゲームとプレイ時間が自動で入り、その後も自動で更新されます。アカウントの年数やSteamレベルが信頼の目安になります。'
                 : 'DiscordのアカウントをIDで確認します。名前・アイコン・メール・アカウントの作成時期は取得・表示しません。実名の本人確認ではありません。'}</Note>
-              <Note>ログインとは別で、連携しなくても使えます。</Note>
+              {/* ログインは左の「アカウント」で行う。ここは連携だけを扱う（account-2：連携は登録とは別で任意） */}
+              <Note>連携は任意です。連携しなくても使えます。</Note>
               {inApp ? <Note color={C.warn}>アプリの中のブラウザでは連携に失敗しやすいので、先に「ブラウザで開く」を押してください。</Note> : null}
               <Row gap={8} wrap>
                 {inApp ? <PillButton label="ブラウザで開く" onPress={onOpenBrowser} /> : null}
-                <SubButton label={service === 'steam' ? 'Steamでログインして連携' : 'Discordと連携'} onPress={start} />
+                <SubButton label={`${name}と連携`} onPress={start} />
               </Row>
             </Stack>
           ) : (
