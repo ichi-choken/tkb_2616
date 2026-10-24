@@ -1,0 +1,25 @@
+name: Auth and integrations
+on:
+  pull_request:
+  push:
+    branches: [feat/auth-integrations-expo]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            packages/integrations/package-lock.json
+      - run: npm run setup
+      - run: npm run check
+      - run: npm run build:native

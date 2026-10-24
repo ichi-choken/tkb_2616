@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Shumitomo",
+    "slug": "shumitomo",
+    "version": "0.1.0",
+    "scheme": "shumitomo",
+    "userInterfaceStyle": "automatic",
+    "web": {
+      "output": "server"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-notifications"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
