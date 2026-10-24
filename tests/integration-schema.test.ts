@@ -98,3 +98,32 @@ test('Draft SQL: IGDB shared rate budget and push delivery deduplication are ser
     assert.equal((await db.query('select * from public.integration_push_deliveries')).rows.length, 0);
   } finally { await db.close(); }
 });
+
+test('Steam login SQL: only server roles can read artifacts; invalid proof does not spend codes', async () => {
+  const db = new PGlite();
+  try {
+    await db.exec('create role anon; create role authenticated; create role service_role bypassrls;');
+    await db.exec(await readFile(new URL('../supabase/proposals/steam-login.sql', import.meta.url), 'utf8'));
+    for (const role of ['anon', 'authenticated']) {
+      await db.exec(`set role ${role}`);
+      for (const table of ['integration_login_attempts', 'integration_login_codes', 'integration_login_tokens']) await assert.rejects(db.query(`select * from public.${table}`));
+      await assert.rejects(db.query("select public.integration_login_consume_attempt('hash',now())"));
+      await assert.rejects(db.query("select public.integration_login_consume_code('hash','challenge','redirect',now())"));
+      await db.exec('reset role');
+    }
+    await db.exec('set role service_role');
+    const hash = 'a'.repeat(64); const challenge = 'b'.repeat(43);
+    await db.query("insert into public.integration_login_attempts values ($1,'{\"state\":\"test-state\"}',now()+interval '5 minutes')", [hash]);
+    const attempt = () => db.query<{ result: unknown }>('select public.integration_login_consume_attempt($1,now()) as result', [hash]);
+    assert.deepEqual((await attempt()).rows[0]?.result, { state: 'test-state' });
+    assert.equal((await attempt()).rows[0]?.result, null);
+    await db.query("insert into public.integration_login_codes values ($1,'76561198000000001',$2,'https://project.test/auth/v1/callback',now()+interval '2 minutes')", [hash, challenge]);
+    const consume = (proof: string, redirect = 'https://project.test/auth/v1/callback') => db.query<{ result: { steamId: string } | null }>('select public.integration_login_consume_code($1,$2,$3,now()) as result', [hash, proof, redirect]);
+    assert.equal((await consume('wrong')).rows[0]?.result, null);
+    assert.equal((await consume(challenge, 'https://attacker.test')).rows[0]?.result, null);
+    assert.equal((await consume(challenge)).rows[0]?.result?.steamId, '76561198000000001');
+    assert.equal((await consume(challenge)).rows[0]?.result, null);
+    await db.query("insert into public.integration_login_codes values ($1,'76561198000000001',$2,'https://project.test/auth/v1/callback',now()-interval '1 second')", [hash, challenge]);
+    assert.equal((await consume(challenge)).rows[0]?.result, null);
+  } finally { await db.close(); }
+});

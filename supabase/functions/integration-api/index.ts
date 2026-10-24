@@ -1,6 +1,8 @@
 import { beginSteamLink, finishSteamLink, beginDiscordLink, finishDiscordLink, DiscordClient, IntegrationError, tokenCipher, type Provider } from '../../../packages/integrations/src/index.ts';
 import { adminClient, bodyOf, failure, originHeaders, principalOf, reply, required } from '../_shared/runtime.ts';
-import { attemptStore, linkStatus, removeLink, saveLink } from '../_shared/store.ts';
+import { attemptStore, claimInitialSteam, linkStatus, removeLink, saveLink } from '../_shared/store.ts';
+
+import { syncOne } from '../_shared/sync.ts';
 
 function providerOf(value: unknown): Provider {
   if (value !== 'steam' && value !== 'discord') throw new IntegrationError('invalid_payload');
@@ -28,7 +30,7 @@ Deno.serve(async request => {
       const callback = callbackFor(body.client === 'native');
       const url = provider === 'steam'
         ? await beginSteamLink(principal, callback, 300_000, store)
-        : await beginDiscordLink(discord(body.client === 'native'), principal, callback, 300_000, store, false);
+        : await beginDiscordLink(discord(body.client === 'native'), principal, callback, 300_000, store);
       return reply({ authorizationUrl: url }, 200, headers);
     }
     if (body.action === 'complete') {
@@ -40,7 +42,11 @@ Deno.serve(async request => {
         : await finishDiscordLink(discord(callback.searchParams.get('native') === '1'), callback, principal, store);
       if (result.status === 'cancelled') return reply({ status: 'cancelled' }, 200, headers);
       const state = callback.searchParams.get('state')!; // Verified as exactly one value by finish*Link.
-      if ('steamId' in result) await saveLink(db, principal, 'steam', state, result.steamId, null);
+      if ('steamId' in result) {
+        await saveLink(db, principal, 'steam', state, result.steamId, null);
+        const row = await claimInitialSteam(db, principal.userId);
+        if (row) await syncOne(row, db);
+      }
       else {
         const cipher = await tokenCipher(required('INTEGRATION_TOKEN_KEY'));
         await saveLink(db, principal, 'discord', state, result.identity.discordId, await cipher.seal(result.tokens, `${principal.userId}:discord`));

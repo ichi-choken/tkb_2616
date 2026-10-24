@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createAuthFlow, parseAuthCallback, requireRegisteredUser, type AuthPort } from '../src/auth/flow.ts';
+import { createAuthFlow, parseAuthCallback, requireRegisteredUser, type AuthPort, type LoginProvider } from '../src/auth/flow.ts';
 
 const redirect = 'https://example.test/auth/callback';
 function fakeAuth(): AuthPort {
@@ -11,15 +11,17 @@ function fakeAuth(): AuthPort {
     signOut: async () => ({ error: null }),
   };
 }
-test('Login redirects through Supabase with PKCE and accepts only Discord / Google', async () => {
-  const auth = fakeAuth();
-  auth.signInWithOAuth = async input => {
-    assert.deepEqual(input, { provider: 'discord', options: { redirectTo: redirect, skipBrowserRedirect: true } });
-    return { data: { url: 'https://project.supabase.co/auth/v1/authorize' }, error: null };
-  };
-  const flow = createAuthFlow(auth, redirect, async () => `${redirect}?code=auth-code`);
-  assert.deepEqual(await flow.signIn('discord'), { status: 'authenticated', user: { id: 'user-a' } });
-  await assert.rejects(flow.signIn('steam' as 'discord'));
+test('All four logins use Supabase PKCE; Steam uses the verified custom provider', async () => {
+  for (const provider of ['discord', 'google', 'steam', 'apple'] as const) {
+    const auth = fakeAuth();
+    auth.signInWithOAuth = async input => {
+      assert.deepEqual(input, { provider: provider === 'steam' ? 'custom:steam' : provider, options: { redirectTo: redirect, skipBrowserRedirect: true } });
+      return { data: { url: 'https://project.supabase.co/auth/v1/authorize' }, error: null };
+    };
+    const flow = createAuthFlow(auth, redirect, async () => `${redirect}?code=auth-code`);
+    assert.deepEqual(await flow.signIn(provider), { status: 'authenticated', user: { id: 'user-a' } });
+    await assert.rejects(flow.signIn('unknown' as LoginProvider));
+  }
 });
 test('Callback rejects foreign hosts, duplicate codes, URL fragments and provider errors', () => {
   for (const url of ['https://attacker.test/auth/callback?code=a', `${redirect}?code=a&code=b`, `${redirect}?code=a#access_token=secret`, `${redirect}?error=access_denied`, `${redirect}?code=a&sb_flow_id=`]) {

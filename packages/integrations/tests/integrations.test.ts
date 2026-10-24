@@ -129,14 +129,12 @@ test('Steam OpenID: an invalid upstream signature never links an identity', asyn
   await assert.rejects(finishSteamLink(callback, principal, store, async () => new Response('ns:http://specs.openid.net/auth/2.0\nis_valid:false\n'), now), errorKind('unauthorized'));
 });
 
-test('Discord: snowflake keeps precision and absent email verification stays unknown', () => {
-  const id = (((BigInt(now) - 1420070400000n) << 22n) + 123n).toString();
-  const user = parseDiscordUser({ id, username: 'tester', global_name: null, email: 'not-stored@example.test' });
-  assert.equal(user.createdAt, timestamp);
-  assert.equal(user.discordId, id);
-  assert.equal(user.emailVerified, null);
-  assert.ok(!('email' in user));
-  assert.equal(parseDiscordUser({ id, username: 'tester', verified: false }).emailVerified, false);
+test('Discord only keeps the exact ID, even when name, icon, email and trust fields are returned', () => {
+  const id = '175928847299117063';
+  assert.deepEqual(parseDiscordUser({ id, username: 'tester', global_name: 'name', avatar: 'hash',
+    email: 'discard@example.test', verified: true }), { discordId: id });
+  assert.deepEqual(parseDiscordUser({ id }), { discordId: id });
+  for (const bad of ['0', 'not-an-id', '18446744073709551616']) assert.throws(() => parseDiscordUser({ id: bad }));
 });
 
 const discordConfig = { clientId: 'test-client', clientSecret: 'test-secret', redirectUri: callbackUri };
@@ -152,7 +150,7 @@ test('Discord: linking verifies state and binds the result to the signed-in user
     return jsonResponse({ id: '175928847299117063', username: 'tester' });
   });
   const store = new Attempts();
-  const url = new URL(await beginDiscordLink(client, principal, callbackUri, 300_000, store, false, now));
+  const url = new URL(await beginDiscordLink(client, principal, callbackUri, 300_000, store, now));
   assert.equal(url.searchParams.get('scope'), 'identify');
   const callback = new URL(callbackUri);
   callback.search = new URLSearchParams({ state: url.searchParams.get('state')!, code: 'test-code' }).toString();

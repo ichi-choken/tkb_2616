@@ -65,10 +65,13 @@ begin
   delete from public.integration_attempts where state_hash=p_state and user_id=p_user and provider=p_provider and session_id=p_session
     and generation=g and consumed_at is not null and expires_at>clock_timestamp() returning state_hash into spent;
   if spent is null then return false; end if;
-  insert into public.integration_links(user_id,provider,external_id,token_ciphertext,next_attempt_at)
-    values(p_user,p_provider,p_external,p_ciphertext,clock_timestamp())
+  insert into public.integration_links(user_id,provider,external_id,token_ciphertext,next_attempt_at,snapshot)
+    values(p_user,p_provider,p_external,p_ciphertext,
+      case when p_provider='steam' then clock_timestamp() else null end,
+      case when p_provider='discord' then jsonb_build_object('status','available','value',jsonb_build_object('discordId',p_external),
+        'lastSuccessAt',clock_timestamp(),'attemptedAt',clock_timestamp(),'nextAttemptAt',null) else null end)
     on conflict(user_id,provider) do update set external_id=excluded.external_id, token_ciphertext=excluded.token_ciphertext,
-      revision=gen_random_uuid(), snapshot=null, next_attempt_at=clock_timestamp(), lease_until=null;
+      revision=gen_random_uuid(), snapshot=excluded.snapshot, next_attempt_at=excluded.next_attempt_at, lease_until=null;
   return true;
 end; $$;
 create function public.integration_unlink(p_user uuid, p_provider text)

@@ -1,7 +1,13 @@
-export type LoginProvider = 'discord' | 'google';
+export type LoginProvider = 'discord' | 'google' | 'steam' | 'apple';
+export type OAuthProvider = 'discord' | 'google' | 'custom:steam' | 'apple';
+export const loginProviders: readonly LoginProvider[] = ['discord', 'google', 'steam', 'apple'];
+export function oauthProvider(provider: LoginProvider): OAuthProvider {
+  if (!loginProviders.includes(provider)) throw new AuthFlowError('provider');
+  return provider === 'steam' ? 'custom:steam' : provider;
+}
 export interface AuthUser { id: string; is_anonymous?: boolean }
 export interface AuthPort {
-  signInWithOAuth(input: { provider: LoginProvider; options: { redirectTo: string; skipBrowserRedirect: true } }): Promise<{ data: { url: string | null }; error: unknown }>;
+  signInWithOAuth(input: { provider: OAuthProvider; options: { redirectTo: string; skipBrowserRedirect: true } }): Promise<{ data: { url: string | null }; error: unknown }>;
   exchangeCodeForSession(code: string, options?: { flowId: string }): Promise<{ error: unknown }>;
   getUser(): Promise<{ data: { user: AuthUser | null }; error: unknown }>;
   signOut(): Promise<{ error: unknown }>;
@@ -48,8 +54,7 @@ export function createAuthFlow(auth: AuthPort, redirectTo: string, openUrl: (url
   return {
     complete,
     async signIn(provider: LoginProvider) {
-      if (provider !== 'discord' && provider !== 'google') throw new AuthFlowError('provider');
-      const { data, error } = await auth.signInWithOAuth({ provider, options: { redirectTo, skipBrowserRedirect: true } });
+      const { data, error } = await auth.signInWithOAuth({ provider: oauthProvider(provider), options: { redirectTo, skipBrowserRedirect: true } });
       if (error || !data.url) throw new AuthFlowError('provider');
       const callback = await openUrl(data.url, redirectTo);
       return callback ? { status: 'authenticated' as const, user: await complete(callback) } : { status: 'closed_or_redirecting' as const };

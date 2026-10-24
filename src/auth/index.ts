@@ -1,7 +1,7 @@
 import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
-import { createAuthFlow } from './flow';
+import { createAuthFlow, type LoginProvider } from './flow';
 import { getSupabase } from '../lib/supabase';
 import { unregisterPush } from '../notifications/push';
 import { externalBrowserMessage, needsExternalBrowser } from './browser-environment';
@@ -27,7 +27,7 @@ export function authErrorMessage(error: unknown): string {
   return error instanceof Error && ['Supabase の接続設定が必要です。', externalBrowserMessage].includes(error.message)
     ? error.message : 'ログインを完了できませんでした。もう一度お試しください。';
 }
-export async function signIn(provider: 'google' | 'discord') {
+export async function signIn(provider: LoginProvider) {
   if (provider === 'google' && Platform.OS === 'web' && needsExternalBrowser(navigator.userAgent)) throw new Error(externalBrowserMessage);
   return getAuthFlow().signIn(provider);
 }

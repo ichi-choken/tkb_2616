@@ -10,7 +10,9 @@ for (const name of ['APP_ALLOWED_ORIGINS', 'STEAM_WEB_API_KEY', 'DISCORD_LINK_CL
 validate('INTEGRATION_CALLBACK_URL', value => { try { const url = new URL(value); return url.protocol === 'https:' && url.pathname === '/auth/link-callback' && !url.search && !url.hash; } catch { return false; } });
 validate('INTEGRATION_TOKEN_KEY', value => /^[A-Za-z0-9+/]{43}=$/.test(value) && Buffer.from(value, 'base64').length === 32);
 validate('INTEGRATION_WORKER_KEY', value => value.length >= 32);
-for (const provider of ['STEAM', 'DISCORD']) {
+validate('STEAM_LOGIN_CLIENT_ID');
+validate('STEAM_LOGIN_CLIENT_SECRET', value => value.length >= 32);
+for (const provider of process.env.DISCORD_SYNC_INTERVAL_MS ? ['DISCORD'] : []) {
   for (const kind of ['INTERVAL', 'RETRY', 'STALE']) validate(`${provider}_SYNC_${kind}_MS`, value => /^\d+$/.test(value) && Number.isSafeInteger(Number(value)) && Number(value) >= (kind === 'STALE' ? 0 : 1));
 }
 if (!config.owner) failures.push('app.json: expo.owner');

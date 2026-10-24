@@ -436,3 +436,7 @@ secret = "env(SUPABASE_AUTH_EXTERNAL_DISCORD_SECRET)"
 enabled = false
 client_id = ""
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+
+# Public OAuth endpoints; Steam signature, client credentials and PKCE are checked in the handler.
+[functions.steam-auth]
+verify_jwt = false

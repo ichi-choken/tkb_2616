@@ -1,11 +1,10 @@
-import { integer, json, nullableText, object, text, type Fetcher, IntegrationError } from './http.ts';
+import { integer, json, object, text, type Fetcher, IntegrationError } from './http.ts';
 export interface DiscordTokens { accessToken: string; refreshToken: string; expiresAt: string; scopes: string[] }
 export function parseDiscordUser(value: unknown) {
   const u = object(value); const id = text(u.id);
   if (!/^[0-9]{1,20}$/.test(id) || BigInt(id) > (1n << 64n) - 1n || BigInt(id) === 0n) throw new IntegrationError('invalid_payload');
-  if (u.verified !== undefined && typeof u.verified !== 'boolean') throw new IntegrationError('invalid_payload');
-  return { discordId: id, displayName: nullableText(u.global_name) ?? text(u.username), avatarHash: nullableText(u.avatar),
-    createdAt: new Date(Number((BigInt(id) >> 22n) + 1420070400000n)).toISOString(), emailVerified: typeof u.verified === 'boolean' ? u.verified : null };
+  // ADR-85: discard all provider profile fields, even if Discord includes them.
+  return { discordId: id };
 }
 export function callbackUrl(raw: string): URL {
   const url = new URL(raw); const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
@@ -18,11 +17,11 @@ export class DiscordClient {
     this.#clientId = text(config.clientId); this.#secret = text(config.clientSecret);
     this.#redirect = callbackUrl(config.redirectUri).href; this.#fetch = fetcher;
   }
-  authorizeUrl(state: string, includeEmailVerification = false): string {
+  authorizeUrl(state: string): string {
     if (state.length < 32) throw new TypeError('Use an unpredictable state with at least 128 bits of entropy');
     const url = new URL('https://discord.com/oauth2/authorize');
     url.search = new URLSearchParams({ client_id: this.#clientId, response_type: 'code', redirect_uri: this.#redirect,
-      scope: includeEmailVerification ? 'identify email' : 'identify', state }).toString();
+      scope: 'identify', state }).toString();
     return url.href;
   }
   async #tokens(params: Record<string, string>): Promise<DiscordTokens> {

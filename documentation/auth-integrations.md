@@ -1,165 +1,115 @@
-# ③ 認証・外部連携・公開の引き継ぎ
+# ①②③のAIへの指示：認証・外部連携の接続
 
-確認日：2026-10-24。仕様側は `Umi-s-Atelie/hobby-platform` の `589d126`、製品側は `0be246a` を基点に準備した。作業中に製品側へ `3a401b1`（`docs/` の画面デモ更新）が入り、差分を確認した。指示に従い、自動マージはしていない。今回の実装と同じファイルの変更はない。
+更新日：2026-10-24。製品リポジトリは `jphacks/tkb_2616`、仕様は `Umi-s-Atelie/hobby-platform`。この文書は3人の担当AIが並行作業するための接続指示です。
 
-このブランチはレビュー用。仕様の承認・優先度は変更していない。未決の配信方式は無効、更新間隔は未設定、共通DBのSQLは `supabase/proposals/` に置いた。クラウド環境へは適用していない。
+## 全担当が最初に読むこと
 
-## 起動する
+- ①は画面、②はDB・募集・参加・成立の業務処理、③は認証・外部連携・通知配信・公開準備を担当する。他担当のファイルを一括移動・置換しない。
+- **依頼者個人のSupabaseプロジェクトを使用しない。** MCPに見えても使用しない。DBの作成、マイグレーション適用、接続先の設定は②に任せる。接続にはチームで指定した環境を使う。
+- 作業開始時にブランチ、未コミット差分、GitHubの最新差分を確認する。他AIの差分を消さない。初期状態とmainが変わっていたら自動マージせず報告する。
+- 本ブランチは `feat/auth-integrations-expo`（PR #1）。最新の画面はmain `d391edc` の `app/`、DB担当は `backend/supabase-init` の `4cf5c69` を確認した。**未統合**なので、その2つのブランチの完成状態を本ブランチの検証結果に含めない。
+- 本ブランチのルートExpoプロジェクトの `app/` は確認用のルート。mainの `app/` は別のExpoプロジェクト。この配置をそのまま統合すると競合する。①と配置を決めるまでは移動しない。
+- 仕様の合意は仕様PR #17 `078c259` を参照する。仕様mainとPRでADR-80〜82の番号が重複しているため、参照はコミットとファイル名も確認する。
+- 独自のアカウント統合・ログイン方式解除はQ-33、通知方式はQ-30、Discordの定期更新条件はQ-24で未決。実装の都合で決定しない。
+- 新しいmdはAIへの作業指示として書く。製品READMEの説明と、実装済み・未接続・未決を混同しない。
 
-Node.js 24.3 以上の 24、または 26 を使う。チームの基準は `.nvmrc` の 24。
+## ① 画面担当AIへの指示
+
+| 接続する機能 | 読むコード・使う関数 |
+| --- | --- |
+| ログイン | `src/auth/index.ts` の `signIn(provider)`。providerは `discord` / `google` / `steam` / `apple` |
+| ログアウト | `src/auth/index.ts` の `signOut()` |
+| ログイン状態 | `src/lib/supabase.ts` のクライアントの `onAuthStateChange`。サーバーでの権限判定に表示用状態を流用しない |
+| 任意の情報連携 | `src/auth/links.ts` の `linkAccount` / `completeAccountLink` / `unlinkAccount` / `linkedAccounts` |
+| 連携状態の表示 | `packages/integrations/src/link-status.ts` の `LinkStatus` / `linkStatusLabels` / `lastUpdatedLabel` |
+| ゲーム検索 | `src/lib/games.ts`。選んだゲームの保存は②と接続する |
+| 通知の有効化・タップ | `src/notifications/push.ts`。通知本文は最新の部屋情報の代わりに使わない |
+
+1. `app/dev/auth.tsx` を呼び出し例として読む。本番の画面デザインは①のコードで実装する。
+2. ログイン4方式と、Steam・Discordの任意連携を別の操作として表示する。Steamログインだけでライブラリを取得しない。Discordの任意連携ではIDと状態だけを表示し、名前・アイコンを表示しない。
+3. `lastSuccessAt` は成功した時刻。取得を試した時刻ではない。最終更新日時と相対表示を出す。7日を超えたら「7日以上前」、取得前は「まだ取得できていません」。実測0分と未取得を区別する。
+4. Googleの既知のアプリ内ブラウザでは `externalBrowserMessage` の案内を表示し、外部ブラウザへ進む導線を用意する。
+5. Webの `/auth/callback` と `/auth/link-callback`、ネイティブの同名deep linkを③の処理へ接続する。戻り先のコード交換を独自に二重実装しない。
+6. ①の最新 `app/` へ組み込む際は、③のルート確認用プロジェクトとルーターを混在させない。起動方法・配置の調整後、Web/iOS/Androidで確認する。
+
+## ② DB・業務処理担当AIへの指示
+
+本ブランチからクラウドDBへ適用したSQLはありません。以下は②が既存マイグレーションと調整する追加案です。
+
+| SQL案 | 担当するデータ |
+| --- | --- |
+| `supabase/proposals/auth-integrations.sql` | 任意連携、認証試行、解除世代、取得スナップショット |
+| `supabase/proposals/steam-login.sql` | Steamログイン時の短命なstate・code・userinfo用tokenのハッシュ |
+| `supabase/proposals/igdb-gateway.sql` | IGDBの共有API呼び出し制限 |
+| `supabase/proposals/notification-delivery.sql` | 端末・通知の配送記録 |
+
+- 利用者IDは検証済みの `auth.users.id` を使う。`profiles.id` と1対1である現在の②の設計に合わせる。本文のuserId、ユーザーが編集できるmetadataを権限判定に使わない。
+- 追加案のテーブル名は `integration_*`。現在の②の `profiles` / `games` / `recruitments` / `applications` / `notifications` を作り直さない。
+- Steamの任意連携解除は `integration_unlink`。取得情報・暗号化トークン・認証試行を削除し、進行中の結果を無効化する。プロフィールの手入力や募集・成立の記録を削除しない。AuthのSteamログインidentityをこの関数で削除しない。
+- 保存するDiscordのアカウント情報はIDのみ。名前・アイコン・メール・作成時期をスナップショットへ足さない。認証の維持に使う暗号化トークンと処理時刻は別扱い。
+- ログイン用の一時テーブルはクライアントからアクセスさせない。codeはPKCE検証に成功した1回だけ消費する。無効な検証値で正しいcodeを消費させない。
+- Steamは連携完了時に取得し、その後は `integration-sync` が永続化した `next_attempt_at` を読んで処理する。アプリを開いていなくても動くよう、チーム環境で1分ごとにワーカーを呼ぶジョブを設定する。ワーカーキーはVault等で保管する。秘密をSQLファイルやGitへ書かない。
+- ワーカーは `POST /functions/v1/integration-sync`、ヘッダーは `x-integration-worker-key`。1回最大4件。利用者数が増えたら未処理件数と所要時間を見て起動数を調整する。外部APIのRetry-Afterを短縮しない。
+- 募集・成立・通知対象者の判断は②の関数が行う。③はそのイベントを配送する。②のアプリ内通知をPushの成功・失敗で消さない。
+- ローカルポートは②の553xxを正として統合する。本ブランチの543xx設定を無条件に上書き適用しない。
+- PGliteのテストは追加案単体の検証。②の実マイグレーションとの結合後、②のローカルSupabaseでテストし、型を再生成する。その後、合意済みのチーム環境へ適用する。
+
+## ③ 認証・外部連携担当AIへの指示
+
+### 実装済みの処理を維持する
+
+- `src/auth/flow.ts` はDiscord・Google・AppleをSupabase標準OAuthへ、Steamを `custom:steam` へ渡す。PKCE・ログインセッションの発行と更新はSupabase Authに任せる。
+- `steam-auth` はSteam OpenID 2.0の公式応答をサーバーで検証し、Supabaseのcustom OAuth2に変換する。自作のAuth JWTや架空のメールアドレスを発行しない。ユーザー入力のSteamIDだけでログインを許可しない。
+- Steamの署名・発行元・戻り先・nonce、OAuth client secret・PKCE・codeの期限と一度限りの交換を検証する。秘密の値をエラー・ログへ出さない。
+- Steam更新の方針は `steamSyncPolicy` が正本。24時間周期、初回失敗から1分・5分・30分・2時間、その後5時間ごとの再試行。成功後は通常周期に戻す。最後の取得値は経過日数だけで削除しない。
+- 連携解除・再連携と競合した古い結果は、DBのrevisionによる比較更新で棄却する。取得値で本人の手入力を上書きしない。
+- Discordの定期更新条件が未設定でもSteamワーカーを止めない。Discordは連携時にIDと確認時刻を保存する。
+
+### チーム環境の設定担当へ渡す情報
+
+1. `.env.example` は公開URL・publishable keyの雛形。接続先は②が指定したものだけを使う。`sb_secret_` はクライアントへ渡さない。
+2. サーバー設定は `supabase/.env.example`。`npm run setup:secrets` は未作成の場合だけローカルの無視対象ファイルを作る。既存の秘密ファイルを上書きしない。環境変数の内容をチャットへ貼らない。
+3. Discord・Google・AppleのSupabase Auth設定を準備する。提供元の戻り先はチームプロジェクトのAuth callback、アプリの戻り先は公開URLの `/auth/callback` と `shumitomo://auth/callback`。別用途のプロジェクトを流用しない。
+4. Steamは次のcustom OAuth2設定を準備する。**この文書を読んだだけで個人プロジェクトへ設定しない。**
+
+| 設定 | 値 |
+| --- | --- |
+| identifier | `custom:steam` |
+| provider_type | `oauth2` |
+| client_id / client_secret | サーバーの `STEAM_LOGIN_CLIENT_ID` / `STEAM_LOGIN_CLIENT_SECRET` と一致する値 |
+| authorization_url | `<チームSUPABASE_URL>/functions/v1/steam-auth/authorize` |
+| token_url | `<チームSUPABASE_URL>/functions/v1/steam-auth/token` |
+| userinfo_url | `<チームSUPABASE_URL>/functions/v1/steam-auth/userinfo` |
+| pkce_enabled | `true` |
+| email_optional | `true`。Steamからメールは取れない |
+| scopes | 空配列。userinfoは検証済みSteamIDだけ |
+
+5. AppleのWeb OAuthにはServices ID・署名設定等が必要。生成したclient secretは6か月以内に更新する。`.p8`自体の定期交換とは区別する。今回のコードはOAuthブラウザ経由。iOSネイティブのApple専用UI・署名済み実機確認は未完了。
+6. Discordの任意連携用callbackは `/auth/link-callback` と `?native=1` 付き。scopeは `identify` のみ。ログイン提供元が内部的に保存するAuth metadataと、アプリの任意連携スナップショットを混同しない。Auth metadataをプロフィールへ転記しない。
+7. SteamのAPI取得には `STEAM_WEB_API_KEY`、ログインにはcustom OAuth2設定が必要。片方を設定しただけで両方を疎通済みとしない。
+8. 複数ログイン方式を同じ利用者へ追加・統合するUIは作らない。Supabase標準の同一メール連結を含む実際の挙動はQ-33の決定と実環境確認に合わせる。
+
+### 通知・公開
+
+通知方式Q-30が決まるまで `NOTIFICATION_TRANSPORT=disabled` と `EXPO_PUBLIC_ENABLE_PUSH=false` を維持する。Expoを採用した場合だけ、FCM/APNs・EAS project ID等をチーム所有の設定で用意する。
+
+②が確定した通知イベントを `notification-delivery` の `send` へ渡す。payload型は `packages/integrations/src/notifications.ts`。同じevent IDで再送し、`nextDeviceCursor` があれば続きを送る。定期的に `tick` を呼び、receipt確認・再試行を進める。`accepted` は配送サービスの受付であり、利用者への到達や既読ではない。部屋番号・招待URL・ゲーム内IDをロック画面のpayloadへ入れない。
+
+Webは本ブランチではserver出力。mainの静的デモと同じ手順で公開できると断言しない。公開先・app identifiersは①②と合わせ、環境変数を指定してビルドする。開発用とデモ／本番用はチームが用意する別環境にする。
+
+## 検証と未完了事項
 
 ```sh
 npm run setup
-cp .env.example .env
-npm run setup:secrets
-npm run web
-```
-
-`http://localhost:8081/dev/auth` が認証・連携の確認画面。Supabase未設定でも起動し、未設定の案内が出る。ログインを試すには `.env` に対象プロジェクトのURLと **publishable key** を設定する。秘密キーは入れない。
-
-`npm run setup:secrets` は無視対象の `.env.edge.local` を一度だけ作り、暗号化キーとジョブ用キーを生成する。既存ファイルは上書きせず、秘密を表示しない。残りの項目を担当者が設定する。
-
-```sh
-npm run check          # TypeScript、テスト、Edgeの型検査、Web出力
-npm run build:native   # iOS/AndroidのJS・Hermes出力。署名済みアプリではない
-npm run doctor:config  # 公開用設定の不足を名前だけ表示。不足があれば終了コード1
-```
-
-Webは `web.output: server`。`dist/` はサーバーを含むため、GitHub Pagesなど静的配信だけの場所では動かない。既存の `docs/` は他担当の静的デモとして保持し、このExpoの入口とはまだ統合していない。
-
-## 他担当が接続する場所
-
-| 担当 | 接続先 | 境界 |
-| --- | --- | --- |
-| ① ログイン画面 | `src/auth/index.ts` の `signIn` / `signOut` | Discord・Google。Webの既知のアプリ内ブラウザではGoogle用の案内を返す。ネイティブはOSの認証ブラウザを使う |
-| ① ログイン表示 | `src/lib/supabase.ts` | UIの表示更新にはAuthの状態通知を利用。権限の判定はサーバーで行う |
-| ① 外部情報の連携 | `src/auth/links.ts` | Steam/Discordの開始・完了・解除・状態。本人のログインとは別の操作 |
-| ① ゲーム検索 | `src/lib/games.ts` | IGDBの候補取得のみ。選択したゲームの保存は② |
-| ① 通知設定・タップ | `src/notifications/push.ts` | 有効化ボタンから登録。タップ時は対象IDを受け取り、②から最新情報と閲覧権限を取り直す |
-| ② 利用者の識別 | `packages/integrations/src/session.ts` | 検証済みAuth利用者IDとsession ID。リクエスト本文のuserIdは信用しない |
-| ② 通知イベント | `packages/integrations/src/notifications.ts` | ②が対象者・種類・対象IDを確定し、③が配信する |
-| ② APIで取った情報 | `_shared/store.ts` / `src/sync.ts` | 連携用スナップショットだけ更新。プロフィールの本人入力・修正値を上書きしない |
-
-Supabase Authの利用者とアプリの利用者行を1対1にする共通DBの作成は②と統合する。未ログインで閲覧している人のAuthアカウントは作らない。募集・承認・成立・通知対象の判定やアプリ内の通知一覧は、このブランチでは実装していない。
-
-`/dev/auth` は開発時だけ表示する。本番の確認が一時的に必要なら `EXPO_PUBLIC_ENABLE_AUTH_DIAGNOSTICS=true` で再ビルドし、確認後はfalseに戻す。本番向けログイン画面のデザインは①が実装する。
-
-## 認証・連携の設定
-
-1. チーム所有のSupabaseプロジェクトを決め、必要な権限で招待する。現在接続できる別用途のプロジェクトは使用していない。
-2. SupabaseのAuthにDiscord・Googleを設定する。OAuth提供元に登録するログイン用の戻り先は **Supabaseが示すcallback URL**。アプリの戻り先と取り違えない。
-3. Supabaseのリダイレクト許可に、公開先の `/auth/callback` と `shumitomo://auth/callback` を正確に登録する。開発時だけlocalhostのcallbackも追加する。
-4. `.env` に公開用のURL・publishable key、Edge側に `supabase/.env.example` の項目を設定する。
-5. Discordの**情報連携**用のOAuthアプリには、公開先の `/auth/link-callback` と `/auth/link-callback?native=1` の両方を登録する。`INTEGRATION_CALLBACK_URL` はクエリなしの前者。ログイン用callbackも同じDiscordアプリで使う場合は、両方の用途を登録する。
-6. SteamはOpenIDでSteamIDを検証し、公開情報のAPI取得にはサーバー側のAPIキーを使う。OpenIDは、非公開データを読む許可ではない。
-
-ネイティブの情報連携は、HTTPSのcallbackからアプリのschemeへ戻る。ログインした本人・同じsession・未使用stateに結びつけてサーバーで検証する。Webブラウザ内でネイティブの利用者セッションを作り直さない。
-
-Discordの情報連携は初期状態で `identify` のみ。メールアドレス自体は保存せず、メール確認状態も権限がなければ不明のまま。アカウント年齢を利用した信用評価は、Q-32の確認が済むまでUIに出さない。
-
-Steamの取得できなかったプレイ時間を0にしない。非公開・取得失敗・0分の実測値を区別する。連携解除後に戻ってきた認証結果や定期更新結果で、情報を復活させない。
-
-Googleのアプリ内ブラウザ判定は既知のUser-Agentに対する補助。判別できないブラウザもあるため、公開確認では実際のSNSから開く。①は案内に従ってSafari/Chromeで元ページを開き直せる導線を用意する。
-
-## DB案とサーバーの適用手順
-
-`supabase/proposals/` のSQLは共通DBのレビュー用。アプリのprofiles・募集・成立のテーブルを変更しない。連携用の秘密・外部情報・配信記録はRLSを有効にし、クライアントから直接読ませない。SQLを承認した後、②が既存マイグレーションと調整して取り込む。
-
-```sh
-npx supabase@2.122.0 migration new auth_integrations
-# 作成されたSQLへ、合意したproposalを順に取り込む
-# auth-integrations.sql / igdb-gateway.sql / notification-delivery.sql
-# ローカルまたは検証用DBで確認した後に、対象プロジェクトへ適用する
-```
-
-認証済みの対象プロジェクトが用意できた後のEdge公開コマンド：
-
-```sh
-npx supabase@2.122.0 secrets set --project-ref <PROJECT_REF> --env-file .env.edge.local
-npx supabase@2.122.0 functions deploy integration-api integration-sync igdb-search notification-delivery --project-ref <PROJECT_REF> --use-api
-```
-
-`config.toml` の `verify_jwt=false` は、Modern API keyと利用者JWT/ジョブ用キーを各ハンドラーで検証するため。`integration-api` は本人認証が必須、`integration-sync` はジョブ用キーが必須。`igdb-search` は閲覧用の公開検索。`notification-delivery` は操作ごとに本人認証またはジョブ用キーを要求する。
-
-`SUPABASE_URL` と `SUPABASE_SECRET_KEYS` はHosted Edgeの環境変数を使う。secret keyの名前がdefault以外なら `INTEGRATION_SECRET_KEY_NAME` を合わせる。ローカルのDocker環境で使う場合は、同じ形式の値をローカルだけに設定する。
-
-## 自動更新と通知の運用
-
-更新間隔・失敗時の間隔・古い値の表示期限はQ-24。承認後に `STEAM_SYNC_*` / `DISCORD_SYNC_*` を設定する。未設定のままジョブを呼ぶと設定エラーになる。APIの429では相手のRetry-Afterより早く再試行しない。
-
-自動実行はSupabase Cronなどから、`integration-sync` にPOSTする。ヘッダー `x-integration-worker-key` はVaultなどで保管する。実行間隔とプロジェクトの分け方を決めた後に登録する。1回で最大4件を処理するため、利用者数と待ち行列を見て起動頻度・ワーカー数を調整する。アプリを開いていない間も呼ぶ仕組みが必要。
-
-IGDBはサーバーでTwitchの認証情報を使い、DBで共有する上限を通して検索する。検索結果を全件保存せず、②が利用者の選んだゲームを保存する。候補を表示するときはIGDBの利用条件・帰属表示も確認する。
-
-通知はQ-30の**候補として**Expo Push Serviceの接続を用意した。使うと決まった場合だけ、サーバーで `NOTIFICATION_TRANSPORT=expo`、アプリで `EXPO_PUBLIC_ENABLE_PUSH=true` にする。FCM/APNsの設定、EAS project ID、端末での許可が必要。初回起動時に勝手に許可を求めない。
-
-配信側の呼び出し先は `notification-delivery`。②の信頼されたワーカーが `x-integration-worker-key` を付け、次のように呼ぶ：
-
-```json
-{
-  "action": "send",
-  "event": {
-    "id": "00000000-0000-4000-8000-000000000001",
-    "recipientId": "00000000-0000-4000-8000-000000000002",
-    "kind": "matched",
-    "target": { "type": "recruitment", "id": "00000000-0000-4000-8000-000000000003" }
-  }
-}
-```
-
-- イベントIDは再試行でも同じにする。すでに受け付けた送信を記録で重複抑止する。`nextDeviceCursor` が返ったら、同じイベントに `deviceCursor` を付けて続きを呼ぶ。再試行時は先頭から確認してよい。
-- `retry` は返った `retryAfterMs` 後に再試行。`accepted` はExpoが受け付けた状態で、利用者への到達や既読ではない。送信直後に通信が切れた場合の完全な一度限りの配送は保証できない。
-- 定期ジョブから `{"action":"tick"}` を呼ぶ。受付から15分以上経ったreceiptの確認と、配信側での再試行を進める。②は最初のイベントを渡し、HTTP失敗やページ送りを処理すればよい。記録された送信失敗は③が端末単位で再試行する。`provider_received` もFCM/APNsの受付までで、既読ではない。期限内にreceiptを得られなければ `unknown` とする。
-- `disabled` の端末には送らず、登録を削除する。`blocked` は設定の修正が必要。②は一部端末の失敗や端末なしでも、アプリ内通知を消さない。Pushだけを通知の正本にしない。
-- ロック画面には一般的なお知らせ文と対象IDだけを送る。部屋番号・招待URL・ゲーム内IDは送らない。タップ後の画面で最新状態を取り直し、開催中止・遊び終了・参加権限を②の処理で確認する。
-- Web Pushは実装していない。Webの通知一覧は②のDBから①が表示する。
-
-## EAS Hosting・ネイティブへの公開
-
-チームのExpoアカウントで対象プロジェクトを用意し、`app.json` のowner・EAS project ID・iOS bundleIdentifier・Android packageを決める。未設定の値を既存の別アプリから流用しない。
-
-```sh
 npm run check
-npx eas-cli@25.3.0 env:exec preview "npx expo export --platform web"
-npx eas-cli@25.3.0 deploy --environment preview
-# 動作確認後、本番へ置く場合
-npx eas-cli@25.3.0 env:exec production "npx expo export --platform web"
-npx eas-cli@25.3.0 deploy --environment production --prod
+npm run build:native
+npm run doctor:config
 ```
 
-公開用の環境変数を使って**ビルドしてから**deployする。`EXPO_PUBLIC_` はビルド時に埋め込まれるため、公開後に環境変数だけ変えてもクライアントは切り替わらない。プレビューURLと本番URLはAuthの許可URL・CORSの許可originにもそれぞれ登録する。
+- `npm run check` は型・テスト・Edge型・Web出力を検証する。外部APIは差し替え、SQLはローカルのPGliteで検証する。個人Supabaseは使わない。
+- 実アカウントの4方式ログイン、実API、実通知、クラウド公開は未確認。設定後にキャンセル、二重callback、無効なstate、解除中の更新、古い通知タップを含めて確認する。
+- 本ブランチだけで、①の最新画面と②の最新DBまで動いたことにしない。配置調整・SQL取り込み・チーム接続先設定後に3担当の動線を結合検証する。
+- 設定不足は `doctor:config` が項目名だけを表示する。プロバイダーの管理画面の設定完了は別に確認する。
+- 既知のExpo CLIの依存警告（node-forge、zod）は前回から残る。SDKを無条件に下げたりmajor版を強制置換しない。公式の修正版が出たら範囲を確認して更新する。
 
-ネイティブはdevelopment buildで確認する。`eas.json` にdevelopment/preview/productionを用意した。実機用の署名や通知資格情報はチーム所有のものを使う。Q-31（App StoreでのAppleログインの扱い）が決まるまでは、App Store提出完了として扱わない。
-
-## 公開環境で残る確認
-
-実際の設定が揃ったら①②③で、未ログイン閲覧→Discord/Googleログイン→プロフィール→募集→参加希望→承認→通知→最新の合流情報、を通す。次も確認する：
-
-- 外部認証を途中で閉じる、戻り先を二重に開く、別アカウントで戻る。
-- Steamの公開・非公開・実測0分、Discordの権限不足・期限切れ・更新失敗。
-- 更新中に連携解除、解除後の再連携、他人の利用者IDを送る操作。
-- 部屋番号/URLの変更、開催中止・遊び終了後の古い通知タップ。
-- iOS/Androidの通知許可拒否・端末登録解除、アプリの再起動とバックグラウンド復帰。
-- 実際のSNS内ブラウザからのGoogleログイン、Webとネイティブそれぞれのcallback。
-
-現時点で実接続・実通知・クラウド公開を確認したとは扱わない。APIキー・対象プロジェクト・OAuth/配信設定が未提供である。
-
-## 検証記録と残る警告
-
-ローカルの型検査、外部サービスを差し替えたテストとPGliteでのSQL検証（計32件）、Web/iOS/Androidのバンドル出力を確認。ブラウザで未設定時の認証画面が表示され、操作が無効になることも確認した。署名済みアプリの実機検証やSupabase本番DBの検証とは別である。
-
-Supabase CLIは設定を読み込めたが、この端末にはDocker/Podmanがないためローカルスタックの稼働確認はできていない。SQLはPGliteで検証した。設定確認スクリプトは、現状の外部アカウント・更新間隔など18項目の未設定を報告する。
-
-2026-10-24のnpm auditは、Expo CLIの依存にhighを5件報告した（重複する経路を含む）。主な原因はnode-forgeとzod。node-forgeの公開修正版はなく、zodの修正版はExpo CLIが使うv3からのmajor変更になる。Expo SDKを旧版へ強制的に落とす修正は行っていない。依存の更新が出たら再検証する。
-
-- [node-forge advisory](https://github.com/advisories/GHSA-86w9-cpqp-85rv)
-- [zod advisory](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5)
-
-## 確認した公式資料
-
-- [Supabase API keys](https://supabase.com/docs/guides/getting-started/api-keys)、[PKCE](https://supabase.com/docs/guides/auth/sessions/pkce-flow)、[Discord login](https://supabase.com/docs/guides/auth/social-login/auth-discord)
-- [Steam authentication](https://partner.steamgames.com/doc/features/auth)、[IPlayerService](https://partner.steamgames.com/doc/webapi/IPlayerService)、[API terms](https://steamcommunity.com/dev/apiterms)
-- [Discord OAuth2](https://docs.discord.com/developers/topics/oauth2)、[User](https://docs.discord.com/developers/resources/user)、[Developer Policy](https://support-dev.discord.com/hc/en-us/articles/8563934450327-Discord-Developer-Policy)
-- [IGDB API](https://api-docs.igdb.com/)
-- [Expo SDK 58](https://expo.dev/changelog/sdk-58)、[EAS Hosting](https://docs.expo.dev/eas/hosting/get-started/)、[push setup](https://docs.expo.dev/push-notifications/push-notifications-setup/)、[push tickets/receipts](https://docs.expo.dev/push-notifications/sending-notifications/)
-- [Supabase scheduled functions](https://supabase.com/docs/guides/functions/schedule-functions)
+公式の技術根拠：[Supabase custom providers](https://supabase.com/docs/guides/auth/custom-oauth-providers)、[Apple login](https://supabase.com/docs/guides/auth/social-sign-in/auth-apple)、[Steam authentication](https://partner.steamgames.com/doc/features/auth)、[Discord OAuth2](https://docs.discord.com/developers/topics/oauth2)。

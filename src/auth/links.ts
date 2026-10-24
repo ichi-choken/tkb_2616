@@ -3,7 +3,8 @@ import { Platform } from 'react-native';
 import { getSupabase } from '../lib/supabase';
 
 export type LinkProvider = 'steam' | 'discord';
-export interface LinkStatus { provider: LinkProvider; status: string; lastSuccessAt: string | null }
+import type { LinkStatus } from '../../packages/integrations/src/link-status';
+export type { LinkStatus };
 const pending = new Map<string, Promise<void>>();
 async function request(body: Record<string, unknown>) {
   const client = getSupabase();

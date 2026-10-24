@@ -55,14 +55,25 @@ async function consume(callback: URL, provider: Provider, principal: Principal, 
 
 export async function beginSteamLink(principal: Principal, redirectUri: string, ttlMs: number, store: LinkAttemptStore, now = Date.now()): Promise<string> {
   const a = await begin('steam', principal, redirectUri, ttlMs, store, now);
+  return steamAuthorizationUrl(a.returnTo);
+}
+
+export function steamAuthorizationUrl(returnTo: string): string {
+  callbackUrl(returnTo);
   const url = new URL(OP);
-  url.search = new URLSearchParams({ 'openid.ns': NS, 'openid.mode': 'checkid_setup', 'openid.return_to': a.returnTo,
-    'openid.realm': new URL(a.returnTo).origin + '/', 'openid.identity': SELECT, 'openid.claimed_id': SELECT }).toString();
+  url.search = new URLSearchParams({ 'openid.ns': NS, 'openid.mode': 'checkid_setup', 'openid.return_to': returnTo,
+    'openid.realm': new URL(returnTo).origin + '/', 'openid.identity': SELECT, 'openid.claimed_id': SELECT }).toString();
   return url.href;
 }
 
 export async function finishSteamLink(callback: URL, principal: Principal, store: LinkAttemptStore, fetcher: Fetcher = fetch, now = Date.now()) {
   const a = await consume(callback, 'steam', principal, store, now);
+  const result = await verifySteamAssertion(callback, a, fetcher, now);
+  return result.status === 'cancelled' ? result : { ...result, userId: principal.userId };
+}
+
+export async function verifySteamAssertion(callback: URL, a: { returnTo: string; createdAt: number }, fetcher: Fetcher = fetch, now = Date.now()) {
+  validateReturn(callback, a.returnTo);
   const p = callback.searchParams;
   if (single(p, 'openid.mode') === 'cancel') return { status: 'cancelled' as const };
   if (single(p, 'openid.ns') !== NS || single(p, 'openid.mode') !== 'id_res' || single(p, 'openid.op_endpoint') !== OP || single(p, 'openid.return_to') !== a.returnTo) throw new IntegrationError('unauthorized');
@@ -94,13 +105,13 @@ export async function finishSteamLink(callback: URL, principal: Principal, store
     pairs.set(line.slice(0, colon), line.slice(colon + 1));
   }
   if (pairs.get('ns') !== NS || pairs.get('is_valid') !== 'true') throw new IntegrationError('unauthorized');
-  return { status: 'verified' as const, steamId: steamId(match[1]), userId: principal.userId };
+  return { status: 'verified' as const, steamId: steamId(match[1]) };
 }
 
 // Optional data linking for an existing user; app sign-in uses Supabase Auth.
-export async function beginDiscordLink(client: DiscordClient, principal: Principal, redirectUri: string, ttlMs: number, store: LinkAttemptStore, includeEmailVerification = false, now = Date.now()) {
+export async function beginDiscordLink(client: DiscordClient, principal: Principal, redirectUri: string, ttlMs: number, store: LinkAttemptStore, now = Date.now()) {
   const a = await begin('discord', principal, redirectUri, ttlMs, store, now);
-  const authorization = client.authorizeUrl(a.state, includeEmailVerification);
+  const authorization = client.authorizeUrl(a.state);
   if (new URL(authorization).searchParams.get('redirect_uri') !== a.returnTo) throw new TypeError('Discord callback configuration mismatch');
   return authorization;
 }
