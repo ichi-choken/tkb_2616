@@ -307,29 +307,31 @@ export function Empty({ title, text, button }: { title: string; text: string; bu
 
 /* ---------- 段階を選ぶスライダー ---------- */
 
-// 点を並べた段階スライダー。押した点の値になる
+// 表示は細いバー、編集時だけつまみを出す。段階ごとのタップ・キーボード選択を保つ。
 function StepSlider({ count, value, color, onChange, startLabel, endLabel, label, valueText }: {
   count: number; value: number; color: string; onChange?: (v: number) => void;
   startLabel: string; endLabel: string; label: string; valueText: string;
 }) {
   const { s } = useLayout();
-  const dot = s(count > 5 ? 13 : 15);
+  const fraction = Math.max(0, Math.min(count - 1, value)) / (count - 1);
+  const position = `${fraction * 100}%` as const;
   return (
     <Row gap={8}>
       <Txt size={11} color={C.muted} style={{ width: s(34) }}>{startLabel}</Txt>
-      <View style={{ flex: 1, justifyContent: 'center' }} accessibilityRole="adjustable" accessibilityLabel={label} accessibilityValue={{ text: valueText }}>
-        <View style={{ position: 'absolute', left: dot / 2, right: dot / 2, height: 2, backgroundColor: C.line }} />
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          {Array.from({ length: count }, (_, i) => (
-            <Pressable key={i} onPress={onChange ? () => onChange(i) : undefined} disabled={!onChange} hitSlop={6}
-              accessibilityRole="button" accessibilityLabel={`${label} ${i + 1}`}
-              style={{
-                width: dot, height: dot, borderRadius: dot / 2, borderWidth: 2,
-                borderColor: i <= value ? color : C.line, backgroundColor: i <= value ? color : C.card,
-                ...(i === value ? { transform: [{ scale: 1.15 }] } : null),
-              }} />
-          ))}
+      <View style={{ flex: 1, height: s(onChange ? 36 : 14), justifyContent: 'center' }}
+        accessible={!onChange} accessibilityRole={onChange ? 'radiogroup' : 'text'}
+        accessibilityLabel={onChange ? label : `${label}：${valueText}`}>
+        <View pointerEvents="none" style={{ position: 'absolute', left: onChange ? `${50 / count}%` : 0, right: onChange ? `${50 / count}%` : 0, height: s(4), borderRadius: s(2), backgroundColor: C.line }}>
+          <View style={{ width: position, height: '100%', borderRadius: s(2), backgroundColor: color }} />
+          {onChange ? <View style={{ position: 'absolute', left: position, top: s(-6), marginLeft: s(-8), width: s(16), height: s(16), borderRadius: s(8), borderWidth: 2, borderColor: color, backgroundColor: C.card }} /> : null}
         </View>
+        {onChange ? <View style={{ flexDirection: 'row', height: '100%' }}>
+          {Array.from({ length: count }, (_, i) => (
+            <Pressable key={i} onPress={() => onChange(i)} accessibilityRole="radio"
+              accessibilityLabel={`${label}：${label === '熱量' ? HEAT[i] : i + 1}`} accessibilityState={{ checked: i === value }}
+              style={({ pressed }) => ({ flex: 1, height: '100%', borderRadius: s(4), backgroundColor: pressed ? C.accentSoft : 'transparent' })} />
+          ))}
+        </View> : null}
       </View>
       <Txt size={11} color={C.muted} style={{ width: s(34), textAlign: 'right' }}>{endLabel}</Txt>
     </Row>
