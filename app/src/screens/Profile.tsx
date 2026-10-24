@@ -24,6 +24,7 @@ export function ProfileScreen() {
 function ProfileView() {
   const { s: st, update, editProfile, go, copy, toast, open } = useStore();
   const [adding, setAdding] = useState<AddKind | null>(null);
+  const { wide } = useLayout();
   const p = st.me;
 
   // 熱量・実力はスライダーでその場で直せる（profile-5）。部品ごとに保存する（ui-1）
@@ -35,6 +36,31 @@ function ProfileView() {
     if (!(await editProfile(profile => { profile.hobbies[i].heat = value; }))) return;
     toast(`熱量を「${HEAT[value]}」にしました`);
   };
+
+  // 広い画面では、趣味と好きなものを左の列（名前の下の空き）に置く
+  const hobbiesAndLikes = (
+    <>
+      <Block title="趣味" right={<MiniButton label="＋ 追加" onPress={() => setAdding('hobbies')} />}>
+        <Card>
+          {p.hobbies.length ? p.hobbies.map((h, i) => (
+            <View key={h.name}>
+              {i > 0 ? <Divider /> : null}
+              <HobbyRow name={h.name} heat={h.heat} onHeat={(v) => setHobbyHeat(i, v)} />
+            </View>
+          )) : <Empty title="趣味がまだ入っていません" text="「＋ 追加」から入れられます。" />}
+        </Card>
+      </Block>
+
+      <Block title="好きなもの" right={<MiniButton label="＋ 追加" onPress={() => setAdding('likes')} />}>
+        <Card pad>
+          {p.likes.length ? (
+            <Row gap={6} wrap>{p.likes.map((l) => <Chip key={l.name} label={l.name} locked={l.locked} />)}</Row>
+          ) : <Empty title="好きなものがまだ入っていません" text="「＋ 追加」から入れられます。" />}
+        </Card>
+        <Note>鍵をかけたものは自分だけに見えます。鍵は「編集」でかけられます。</Note>
+      </Block>
+    </>
+  );
 
   return (
     <Stack>
@@ -50,6 +76,7 @@ function ProfileView() {
           </WhoCard>
           <Note>プロフィールはこの端末に保存されます。同じブラウザで再読み込みしても残ります。</Note>
           <TimesCard times={p.times} region={p.region} />
+          {wide ? hobbiesAndLikes : null}
         </>}
         right={<>
           <Block title="ゲーム" count={p.games.length} right={<MiniButton label="＋ 追加" onPress={() => setAdding('games')} />}>
@@ -62,26 +89,8 @@ function ProfileView() {
               <Card><Empty title="ゲームがまだ入っていません" text="ゲームを入れると、合う募集が見つかりやすくなります。" button={{ label: '＋ ゲームを追加', onPress: () => setAdding('games') }} /></Card>
             )}
           </Block>
-
-          <Block title="趣味" right={<MiniButton label="＋ 追加" onPress={() => setAdding('hobbies')} />}>
-            <Card>
-              {p.hobbies.length ? p.hobbies.map((h, i) => (
-                <View key={h.name}>
-                  {i > 0 ? <Divider /> : null}
-                  <HobbyRow name={h.name} heat={h.heat} onHeat={(v) => setHobbyHeat(i, v)} />
-                </View>
-              )) : <Empty title="趣味がまだ入っていません" text="「＋ 追加」から入れられます。" />}
-            </Card>
-          </Block>
-
-          <Block title="好きなもの" right={<MiniButton label="＋ 追加" onPress={() => setAdding('likes')} />}>
-            <Card pad>
-              {p.likes.length ? (
-                <Row gap={6} wrap>{p.likes.map((l) => <Chip key={l.name} label={l.name} locked={l.locked} />)}</Row>
-              ) : <Empty title="好きなものがまだ入っていません" text="「＋ 追加」から入れられます。" />}
-            </Card>
-            <Note>鍵をかけたものは自分だけに見えます。鍵は「編集」でかけられます。</Note>
-          </Block>
+          {/* スマホでは、ゲームの下に続ける（画面の並び：ゲーム → 趣味 → 好きなもの） */}
+          {wide ? null : hobbiesAndLikes}
           <RightsNote onOpen={open} />
         </>}
       />
