@@ -1,0 +1,13 @@
+node_modules/
+.expo/
+dist/
+dist-native/
+web-build/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+.DS_Store
+expo-env.d.ts
+/supabase/.temp/
+/supabase/.branches/

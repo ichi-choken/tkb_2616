@@ -161,7 +161,7 @@ site_url = "http://127.0.0.1:3000"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+additional_redirect_urls = ["https://127.0.0.1:3000", "http://localhost:8081/auth/callback", "http://127.0.0.1:8081/auth/callback", "shumitomo://auth/callback"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -414,3 +414,29 @@ enabled = true
 # formatted with uppercase keywords, indent 2, max width 180, trailing commas,
 # and column/key alignment. Set to "null" to emit raw, unformatted SQL.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
+
+# Modern publishable/secret keys: authentication is checked inside each handler.
+# integration-api: verified user; integration-sync: worker secret;
+# notification-delivery: verified user or worker by action; igdb-search: public read-only.
+[functions.integration-api]
+verify_jwt = false
+[functions.integration-sync]
+verify_jwt = false
+[functions.igdb-search]
+verify_jwt = false
+[functions.notification-delivery]
+verify_jwt = false
+
+# Enable only after supplying provider credentials. Hosted projects are configured separately.
+[auth.external.discord]
+enabled = false
+client_id = ""
+secret = "env(SUPABASE_AUTH_EXTERNAL_DISCORD_SECRET)"
+[auth.external.google]
+enabled = false
+client_id = ""
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+
+# Public OAuth endpoints; Steam signature, client credentials and PKCE are checked in the handler.
+[functions.steam-auth]
+verify_jwt = false
