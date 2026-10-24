@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createProfileRepository } from './profile-storage';
 import * as Clipboard from 'expo-clipboard';
 import { formatWhen, todayISO } from './dates';
+import { clearSaved, loadSaved, saveState } from './saved';
 import {
   GAMES, HEAT, LISTINGS, ME, SAMPLE_REQUESTS,
   type GameTag, type MyGame, type PersonId, type Profile,
@@ -179,7 +180,14 @@ type Store = {
 const StoreContext = createContext<Store | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [s, setS] = useState<State>(() => freshState(isWeb ? hashToRoute(window.location.hash) : undefined));
+  // この端末に残っていれば、前の続きから始める（saved.ts）。プロフィールは profile-storage から読む
+  const restored = useRef(false);
+  const [s, setS] = useState<State>(() => {
+    const fresh = freshState(isWeb ? hashToRoute(window.location.hash) : undefined);
+    const loaded = loadSaved(fresh);
+    restored.current = loaded !== fresh;
+    return loaded;
+  });
   const [profiles] = useState(() => createProfileRepository(AsyncStorage));
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -205,7 +213,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     let active = true;
     void profiles.load().then(profile => {
       if (!active) return;
-      update(d => { d.me = profile; d.rec.form = newRecruitForm(profile.games[0]?.tag ?? 'apex', profile.games); });
+      // 前の続きの募集が残っていれば、それを消さない
+      update(d => { d.me = profile; if (!restored.current) d.rec.form = newRecruitForm(profile.games[0]?.tag ?? 'apex', profile.games); });
       setReady(true);
     }).catch(() => { if (active) setLoadError(true); });
     return () => { active = false; };
@@ -221,6 +230,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return false;
     }
   }, [profiles, update, toast]);
+
+  // 変わるたびに、この端末に残す。保存できない端末（プライベートモードなど）なら一度だけ知らせる
+  const warned = useRef(false);
+  useEffect(() => {
+    if (!saveState(s) && !warned.current) {
+      warned.current = true;
+      toast('この端末には保存できません。閉じると入力が消えます');
+    }
+  }, [s, toast]);
 
   const setRoute = useCallback((route: Route) => {
     update((d) => {
@@ -282,6 +300,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const reset = useCallback(async () => {
     try {
       await profiles.reset();
+      clearSaved();
+      restored.current = false;
       setS(freshState());
       setReady(true);
       setLoadError(false);

@@ -3,6 +3,8 @@
 import { useSyncExternalStore } from 'react';
 import { Platform, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { readItem, writeItem } from '../deviceStorage';
+import { savedInfo } from '../saved';
 import { useStore } from '../store';
 import { C, useLayout } from '../theme';
 import {
@@ -39,12 +41,31 @@ const fresh = (): Settings => ({
   steamShow: { age: true, level: true, games: true },
 });
 
-let current = fresh();
+// 連携の状態も、この端末に残す。認証の途中だったものは、開き直したら元の状態に戻す
+const KEY = 'shumitomo:settings:v1';
+function load(): Settings {
+  const base = fresh();
+  try {
+    const raw = readItem(KEY);
+    if (!raw) return base;
+    const v = JSON.parse(raw) as Partial<Settings>;
+    const link = (x: Partial<Link> | undefined): Link => ({ ...freshLink(), ...x, phase: 'idle' });
+    return {
+      ...base, ...v, googleStep: false,
+      steam: link(v.steam), discord: link(v.discord), steamShow: { ...base.steamShow, ...v.steamShow },
+    };
+  } catch {
+    return base;
+  }
+}
+
+let current = load();
 const listeners = new Set<() => void>();
 function set(fn: (d: Settings) => void) {
   const next: Settings = JSON.parse(JSON.stringify(current));
   fn(next);
   current = next;
+  writeItem(KEY, JSON.stringify(current));
   listeners.forEach((l) => l());
 }
 function useSettings() {
@@ -127,6 +148,7 @@ export function SettingsScreen() {
     <>
       <LinkBlock service="steam" inApp={inApp} onOpenBrowser={openInBrowser} />
       <LinkBlock service="discord" inApp={inApp} onOpenBrowser={openInBrowser} />
+      <DataBlock />
       <Card pad>
         <Stack gap={6}>
           <Txt size={13} weight="bold">このアプリについて</Txt>
@@ -144,6 +166,39 @@ export function SettingsScreen() {
       <Note color={C.warn}>設定の画面デモです。ログイン・連携・取得値はすべて見本で、外部サービスには接続しません。</Note>
       <Cols even left={left} right={right} />
     </Stack>
+  );
+}
+
+// この端末に残しているデータ。家計簿アプリのように、閉じて開き直しても前の続きから使える
+function DataBlock() {
+  const { s: st, reset, confirm } = useStore();
+  // st が変わるたびに保存しているので、st を見て描き直すと最終保存時刻も新しくなる
+  void st;
+  const { lastSavedAt, canSave } = savedInfo();
+  const at = lastSavedAt ? new Date(lastSavedAt) : null;
+  const p = (n: number) => String(n).padStart(2, '0');
+  return (
+    <Block title="この端末のデータ">
+      <Card pad>
+        <Stack gap={8}>
+          <Row gap={8}>
+            <Ionicons name={canSave ? 'save-outline' : 'alert-circle-outline'} size={18} color={canSave ? C.ok : C.danger} />
+            <Txt size={14} weight="bold" style={{ flex: 1 }}>{canSave ? '自動で保存しています' : 'この端末には保存できません'}</Txt>
+            {at ? <Note>最終保存 {at.getMonth() + 1}/{at.getDate()} {p(at.getHours())}:{p(at.getMinutes())}</Note> : null}
+          </Row>
+          <Note>{canSave
+            ? 'プロフィール・募集・フレンド・連携の状態は、この端末（ブラウザ）に残ります。閉じて開き直しても、前の続きから使えます。別の端末とは同期しません。'
+            : 'プライベートモードなどで、ブラウザが保存を許していません。閉じると入力が消えます。'}</Note>
+          <View style={{ alignSelf: 'flex-start' }}>
+            <SubButton danger label="この端末のデータを消す" onPress={async () => {
+              if (!(await confirm('この端末に残したプロフィールや募集を消して、最初の状態に戻しますか？'))) return;
+              resetSettings();
+              reset();
+            }} />
+          </View>
+        </Stack>
+      </Card>
+    </Block>
   );
 }
 
