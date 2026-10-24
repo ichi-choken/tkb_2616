@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, router } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { Platform, Text, View } from 'react-native';
-import { getAuthFlow, authErrorMessage } from '../../src/auth';
+import { getAuthFlow, authErrorMessage } from '../../auth';
 
 export default function AuthCallback() {
   const url = Linking.useURL();

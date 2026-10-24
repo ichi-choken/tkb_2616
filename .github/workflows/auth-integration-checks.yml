@@ -2,7 +2,7 @@ name: Auth and integrations
 on:
   pull_request:
   push:
-    branches: [feat/auth-integrations-expo]
+    branches: [main, feat/auth-integrations-expo]
 permissions:
   contents: read
 jobs:

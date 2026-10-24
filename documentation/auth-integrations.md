@@ -9,8 +9,8 @@
 - ①は画面、②はDB・募集・参加・成立の業務処理、③は認証・外部連携・通知配信・公開準備を担当する。他担当のファイルを一括移動・置換しない。
 - **依頼者個人のSupabaseプロジェクトを使用しない。** MCPに見えても使用しない。DBの作成、マイグレーション適用、接続先の設定は②に任せる。接続にはチームで指定した環境を使う。
 - 作業開始時にブランチ、未コミット差分、GitHubの最新差分を確認する。他AIの差分を消さない。初期状態とmainが変わっていたら自動マージせず報告する。
-- 本ブランチは `feat/auth-integrations-expo`（PR #1）。最新の画面はmain `d391edc` の `app/`、DB担当は `backend/supabase-init` の `4cf5c69` を確認した。**未統合**なので、その2つのブランチの完成状態を本ブランチの検証結果に含めない。
-- 本ブランチのルートExpoプロジェクトの `app/` は確認用のルート。mainの `app/` は別のExpoプロジェクト。この配置をそのまま統合すると競合する。①と配置を決めるまでは移動しない。
+- ユーザーの統合依頼により、main a73ef33の画面・DBをPR #1へ取り込んだ。画面、DBマイグレーション・型・seed・DBテスト、既存Pages出力はmainと同一。
+- 統合版はrootで npm run setup → npm run web。Routerはsrc/app/、トップ画面は既存app/App.tsxを読み込む。app/は移動せず、単独デモとPagesの起動・出力方法も維持する。
 - 仕様の合意は仕様PR #17 `078c259` を参照する。仕様mainとPRでADR-80〜82の番号が重複しているため、参照はコミットとファイル名も確認する。
 - 独自のアカウント統合・ログイン方式解除はQ-33、通知方式はQ-30、Discordの定期更新条件はQ-24で未決。実装の都合で決定しない。
 - 新しいmdはAIへの作業指示として書く。製品READMEの説明と、実装済み・未接続・未決を混同しない。
@@ -27,12 +27,12 @@
 | ゲーム検索 | `src/lib/games.ts`。選んだゲームの保存は②と接続する |
 | 通知の有効化・タップ | `src/notifications/push.ts`。通知本文は最新の部屋情報の代わりに使わない |
 
-1. `app/dev/auth.tsx` を呼び出し例として読む。本番の画面デザインは①のコードで実装する。
+1. `src/app/dev/auth.tsx` を呼び出し例として読む。本番の画面デザインは①のコードで実装する。
 2. ログイン4方式と、Steam・Discordの任意連携を別の操作として表示する。Steamログインだけでライブラリを取得しない。Discordの任意連携ではIDと状態だけを表示し、名前・アイコンを表示しない。
 3. `lastSuccessAt` は成功した時刻。取得を試した時刻ではない。最終更新日時と相対表示を出す。7日を超えたら「7日以上前」、取得前は「まだ取得できていません」。実測0分と未取得を区別する。
 4. Googleの既知のアプリ内ブラウザでは `externalBrowserMessage` の案内を表示し、外部ブラウザへ進む導線を用意する。
 5. Webの `/auth/callback` と `/auth/link-callback`、ネイティブの同名deep linkを③の処理へ接続する。戻り先のコード交換を独自に二重実装しない。
-6. ①の最新 `app/` へ組み込む際は、③のルート確認用プロジェクトとルーターを混在させない。起動方法・配置の調整後、Web/iOS/Androidで確認する。
+6. app/の既存ナビゲーションを維持する。認証callbackはsrc/app/。公開先は/auth/callbackと/auth/link-callbackをindex.htmlへ戻すSPA設定が必要。設定画面はまだデモであり、実認証・実DBへの接続完了を意味しない。Discordのデモ文言に残る作成時期・メール認証は、実接続時に合意済みのIDのみへ修正する。
 
 ## ② DB・業務処理担当AIへの指示
 
@@ -53,8 +53,8 @@
 - Steamは連携完了時に取得し、その後は `integration-sync` が永続化した `next_attempt_at` を読んで処理する。アプリを開いていなくても動くよう、チーム環境で1分ごとにワーカーを呼ぶジョブを設定する。ワーカーキーはVault等で保管する。秘密をSQLファイルやGitへ書かない。
 - ワーカーは `POST /functions/v1/integration-sync`、ヘッダーは `x-integration-worker-key`。1回最大4件。利用者数が増えたら未処理件数と所要時間を見て起動数を調整する。外部APIのRetry-Afterを短縮しない。
 - 募集・成立・通知対象者の判断は②の関数が行う。③はそのイベントを配送する。②のアプリ内通知をPushの成功・失敗で消さない。
-- ローカルポートは②の553xxを正として統合する。本ブランチの543xx設定を無条件に上書き適用しない。
-- PGliteのテストは追加案単体の検証。②の実マイグレーションとの結合後、②のローカルSupabaseでテストし、型を再生成する。その後、合意済みのチーム環境へ適用する。
+- ローカルポートは②の553xxを正として統合する。旧543xx設定へ戻さない。
+- PGliteで追加案単体と、tests/merged-database.test.tsによるmainの実マイグレーションとの共存・基本動線を検証する。Supabase全体やRealtimeの実行確認ではない。実スキーマ変更時は②のローカルSupabaseで既存47件のDBテストと型生成を行う。
 
 ## ③ 認証・外部連携担当AIへの指示
 
@@ -115,3 +115,11 @@ npm run doctor:config
 - 既知のExpo CLIの依存警告（node-forge、zod）は前回から残る。SDKを無条件に下げたりmajor版を強制置換しない。公式の修正版が出たら範囲を確認して更新する。
 
 公式の技術根拠：[Supabase custom providers](https://supabase.com/docs/guides/auth/custom-oauth-providers)、[Apple login](https://supabase.com/docs/guides/auth/social-sign-in/auth-apple)、[Steam authentication](https://partner.steamgames.com/doc/features/auth)、[Discord OAuth2](https://docs.discord.com/developers/topics/oauth2)。
+
+## 統合後の確認（2026-10-24）
+
+- npm run check：画面と認証それぞれの型検査、49テスト、Edge型検査、Web出力。npm run build:native：iOS/Androidバンドル出力。署名済み実機確認は別。
+- Webは既存画面と同じSPA。SSRへ戻す場合はフォント・hash初期状態・外部ストアのhydration対応を先に行う。
+- rootのMetroはrootのnode_modulesへ解決を統一する。app/に単独デモの依存を入れてもReactを二重ロードしない。サーバー用.envとsupabaseの実装・SQLは配信対象外。
+- ローカルブラウザで公開→承認→編集、プロフィールへの同時保存、別ゲームからの再公開防止、設定画面、認証診断、設定未入力時のcallbackを確認した。募集画面はデモ状態管理のまま。
+- 実OAuth、実API、Push、チームDB、デプロイは未接続・未検証。個人Supabaseは使用しない。追加SQL案を勝手にmigrationsへ移さない。

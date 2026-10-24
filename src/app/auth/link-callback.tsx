@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, router, useLocalSearchParams } from 'expo-router';
 import { Platform, Text, View } from 'react-native';
-import { completeAccountLink } from '../../src/auth/links';
+import { completeAccountLink } from '../../auth/links';
 
 export default function LinkCallback() {
   const params = useLocalSearchParams<{ callback?: string }>();

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Button, Text, View } from 'react-native';
 import { Redirect } from 'expo-router';
-import { getSupabase } from '../../src/lib/supabase';
-import { loginProviders } from '../../src/auth/flow';
-import { lastUpdatedLabel, linkStatusLabels } from '../../packages/integrations/src/link-status';
-import { signIn, authErrorMessage, signOut } from '../../src/auth';
-import { registerPush } from '../../src/notifications/push';
-import { linkAccount, linkedAccounts, unlinkAccount, type LinkStatus } from '../../src/auth/links';
+import { getSupabase } from '../../lib/supabase';
+import { loginProviders } from '../../auth/flow';
+import { lastUpdatedLabel, linkStatusLabels } from '../../../packages/integrations/src/link-status';
+import { signIn, authErrorMessage, signOut } from '../../auth';
+import { registerPush } from '../../notifications/push';
+import { linkAccount, linkedAccounts, unlinkAccount, type LinkStatus } from '../../auth/links';
 
 export default function AuthDiagnostics() {
   const [userId, setUserId] = useState<string | null>(null);

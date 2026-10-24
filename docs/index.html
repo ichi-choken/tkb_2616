@@ -1,37 +1,36 @@
 <!doctype html>
-<html lang="ja">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#ffffff">
-  <title>Shumitomo</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <header class="topbar">
-    <span class="brand">Shumitomo</span>
-  </header>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>Shumitomo</title>
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+  <meta name="theme-color" content="#f5f6fa">
+<link rel="icon" href="/tkb_2616/favicon.ico"/></head>
 
-  <main id="view" aria-live="polite"></main>
-
-  <!-- 下のタブ（app-7）：すべての画面に出る -->
-  <nav class="tabbar" aria-label="メインメニュー">
-    <a class="tab" href="#/profile" data-tab="profile">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
-      <span>プロフィール</span>
-    </a>
-    <a class="tab" href="#/recruit" data-tab="recruit">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10v4h4l6 4V6L7 10H3z"/><path d="M17 8a5 5 0 0 1 0 8"/></svg>
-      <span>募集</span>
-    </a>
-    <a class="tab" href="#/connections" data-tab="connections">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M16 14.2c3 .1 5.5 2 5.5 5.3"/></svg>
-      <span>つながり</span>
-    </a>
-  </nav>
-
-  <div id="toast" class="toast" role="status" hidden></div>
-
-  <script src="app.js"></script>
+  <body>
+    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
+    <noscript> You need to enable JavaScript to run this app. </noscript>
+    <!-- The root element for your Expo app. -->
+    <div id="root"></div>
+  <script src="/tkb_2616/expo/static/js/web/index-e1d8f6065b7f7da147ac93f224ad1250.js" defer></script>
 </body>
 </html>
