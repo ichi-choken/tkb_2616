@@ -76,7 +76,7 @@ const { data: mine } = await supabase
 | `not_owner` | 募集する人でない |
 | `own_recruitment` | 自分の募集に参加しようとした |
 | `not_accepting` | 受け付けていない状態（`status` を見る） |
-| `unknown_game` | 用意していないゲーム |
+| `unknown_game` | 用意していないゲーム（選んだゲームは、先に Edge Function `igdb-search` の保存で `games` に入れる。`src/lib/games.ts` の `saveGame`） |
 | `game_account_id_required` | IDが要る募集で、ゲーム内IDが空 |
 | `game_account_id_invalid` | ゲーム内IDが英数字だけでない |
 | `unknown_mode` | そのゲームの選択肢に無いモード（中身の無いゲームでは、モードを入れられない） |

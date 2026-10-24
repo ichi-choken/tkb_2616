@@ -19,7 +19,7 @@
     "build:web": "expo export --platform web",
     "check": "npm run typecheck && npm run typecheck:frontend && npm test && npm run check:edge && npm run build:web",
     "setup": "npm ci && npm --prefix packages/integrations ci",
-    "check:edge": "deno check --frozen --config supabase/functions/deno.json supabase/functions/integration-api/index.ts supabase/functions/integration-sync/index.ts supabase/functions/igdb-search/index.ts supabase/functions/notification-delivery/index.ts supabase/functions/steam-auth/index.ts",
+    "check:edge": "deno check --frozen --config supabase/functions/deno.json supabase/functions/integration-api/index.ts supabase/functions/integration-sync/index.ts supabase/functions/igdb-search/index.ts supabase/functions/notification-delivery/index.ts supabase/functions/steam-auth/index.ts supabase/functions/steam-trust/index.ts",
     "build:native": "expo export --platform ios --platform android --output-dir dist-native",
     "doctor:config": "node --env-file-if-exists=.env --env-file-if-exists=.env.edge.local scripts/check-config.mjs",
     "setup:secrets": "node scripts/create-local-secrets.mjs",

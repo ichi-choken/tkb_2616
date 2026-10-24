@@ -26,7 +26,8 @@
 | ログイン状態 | `src/lib/supabase.ts` のクライアントの `onAuthStateChange`。サーバーでの権限判定に表示用状態を流用しない |
 | 任意の情報連携 | `src/auth/links.ts` の `linkAccount` / `completeAccountLink` / `unlinkAccount` / `linkedAccounts` |
 | 連携状態の表示 | `packages/integrations/src/link-status.ts` の `LinkStatus` / `linkStatusLabels` / `lastUpdatedLabel` |
-| ゲーム検索 | `src/lib/games.ts`。選んだゲームの保存は②と接続する |
+| ゲーム検索 | `src/lib/games.ts` の `searchGames`。候補を選んだら `saveGame(id)` で `games` に保存してから、その `id` で募集を出す（保存はログインが要る。IGDBに届かないときは、保存済みのゲームならそのまま返る） |
+| Steamの信頼の目安 | `src/lib/trust.ts` の `steamTrustOf(userIds, gameIds)`。ログインなしで読める。アカウントの年数・Steamレベル・そのゲームを持っているか・プレイ時間（server-41）と最終取得成功時刻を返す。Steam連携の無い人は結果に入らない。`owned` は「持っている」か「分からない」だけで、「持っていない」とは返さない（EXT-Steam-2） |
 | 通知の有効化・タップ | `src/notifications/push.ts`。通知本文は最新の部屋情報の代わりに使わない |
 
 1. `src/app/dev/auth.tsx` を呼び出し例として読む。本番の画面デザインは①のコードで実装する。

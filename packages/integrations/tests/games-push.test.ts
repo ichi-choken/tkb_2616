@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { IgdbClient, parseGames, ExpoPushClient, isExpoPushToken, IntegrationError, type Fetcher } from '../src/index.ts';
+import { IgdbClient, parseGames, parseGameRecord, ExpoPushClient, isExpoPushToken, IntegrationError, type Fetcher } from '../src/index.ts';
 const response = (data: unknown, status = 200) => Response.json(data, { status });
 
 test('IGDB: escapes search input, caches tokens and always releases the shared request lease', async () => {
@@ -29,6 +29,28 @@ test('IGDB: refreshes a rejected token once, respects a shared gate rejection, a
   assert.equal(tokens, 2); assert.equal(requests, 2); assert.equal(released, 2);
   const limited = new IgdbClient({ clientId: 'id', clientSecret: 'secret' }, { async acquire() { throw new IntegrationError('rate_limited', 429, 250); } }, async () => response({ access_token: 'token', expires_in: 3600 }));
   await assert.rejects(limited.get(1), (error: unknown) => error instanceof IntegrationError && error.retryAfterMs === 250);
+});
+
+test('IGDB: a chosen game is read with the columns to store, and Steam is recognised by its store URL or category', async () => {
+  let query = '';
+  const client = new IgdbClient({ clientId: 'id', clientSecret: 'secret' }, { async acquire() { return { async release() {} }; } }, async (url, init) => {
+    if (String(url).includes('id.twitch.tv')) return response({ access_token: 'token', expires_in: 3600 });
+    query = String(init?.body);
+    return response([{ id: 7, name: 'Splatoon 3', first_release_date: 1662681600,
+      alternative_names: [{ name: 'スプラトゥーン3' }, { name: 'Splatoon 3' }], game_localizations: [{ name: 'スプラトゥーン3' }, { name: '斯普拉遁3' }],
+      platforms: [{ name: 'Nintendo Switch' }], cover: { image_id: 'co5abc' },
+      external_games: [{ uid: '123', url: 'https://www.gog.com/game/x' }, { uid: '1172470', url: 'https://store.steampowered.com/app/1172470' }] }]);
+  });
+  assert.deepEqual(await client.record(7), { id: 7, name: 'Splatoon 3', alternativeNames: ['スプラトゥーン3', '斯普拉遁3'],
+    platforms: ['Nintendo Switch'], coverImageId: 'co5abc', firstReleaseDate: '2022-09-09', steamAppId: 1172470 });
+  assert.ok(query.startsWith('where id = 7;'));
+  assert.throws(() => client.record(0));
+  assert.equal(parseGameRecord([]), null);
+  assert.equal(parseGameRecord([{ id: 1, name: 'A', external_games: [{ uid: '570', category: 1 }] }])?.steamAppId, 570);
+  // Neither the store URL nor the Steam category: not a Steam app ID.
+  assert.equal(parseGameRecord([{ id: 1, name: 'A', external_games: [{ uid: '570', category: 5 }] }])?.steamAppId, null);
+  assert.equal(parseGameRecord([{ id: 1, name: 'A', external_games: [{ uid: '99999999999', category: 1 }] }])?.steamAppId, null);
+  assert.deepEqual(parseGameRecord([{ id: 1, name: 'A' }]), { id: 1, name: 'A', alternativeNames: [], platforms: [], coverImageId: null, firstReleaseDate: null, steamAppId: null });
 });
 
 const event = { id: 'event', recipientId: 'user', kind: 'matched', target: { type: 'recruitment' as const, id: 'recruitment' }, roomNumber: 'PRIVATE', invitationUrl: 'https://private.test', gameId: 'PRIVATE' };

@@ -417,7 +417,8 @@ enabled = true
 
 # Modern publishable/secret keys: authentication is checked inside each handler.
 # integration-api: verified user; integration-sync: worker secret;
-# notification-delivery: verified user or worker by action; igdb-search: public read-only.
+# notification-delivery: verified user or worker by action; igdb-search: public search, verified user to save;
+# steam-trust: public read-only.
 [functions.integration-api]
 verify_jwt = false
 [functions.integration-sync]
@@ -425,6 +426,8 @@ verify_jwt = false
 [functions.igdb-search]
 verify_jwt = false
 [functions.notification-delivery]
+verify_jwt = false
+[functions.steam-trust]
 verify_jwt = false
 
 # Enable only after supplying provider credentials. Hosted projects are configured separately.

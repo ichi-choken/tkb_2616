@@ -10,3 +10,4 @@ export * from './igdb.ts';
 export * from './expo-push.ts';
 export * from './link-status.ts';
 export * from './steam-login.ts';
+export * from './trust.ts';

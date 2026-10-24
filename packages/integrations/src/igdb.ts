@@ -20,6 +20,39 @@ export function parseGames(value: unknown): GameCandidate[] {
       platforms: (game.platforms as unknown[] | undefined ?? []).map(rawPlatform => { const p = object(rawPlatform); return { id: integer(p.id), name: text(p.name) }; }) };
   });
 }
+// The IGDB-derived columns of public.games (the data model's "タグの取り込み"). Curated columns
+// (modes, needs_participant_id_default, hide_cover) are not IGDB's to fill.
+export interface GameRecord { id: number; name: string; alternativeNames: string[]; platforms: string[]; coverImageId: string | null; firstReleaseDate: string | null; steamAppId: number | null }
+const STEAM_CATEGORY = 1; // external_games.category "steam" (deprecated by IGDB, still documented)
+function steamAppIdOf(entry: Record<string, unknown>): number | null {
+  if (typeof entry.uid !== 'string' || !/^[1-9][0-9]{0,9}$/.test(entry.uid)) return null;
+  const uid = Number(entry.uid);
+  if (uid > 2_147_483_647) return null; // games.steam_app_id is an integer column
+  let host: string | null = null;
+  try { host = typeof entry.url === 'string' ? new URL(entry.url).hostname : null; } catch { /* Not a usable URL. */ }
+  // The id of external_game_source for Steam is not documented, so recognise Steam by its store URL or the category.
+  return host === 'store.steampowered.com' || entry.category === STEAM_CATEGORY ? uid : null;
+}
+export function parseGameRecord(value: unknown): GameRecord | null {
+  if (!Array.isArray(value)) throw new IntegrationError('invalid_payload');
+  if (value.length === 0) return null;
+  const game = object(value[0]);
+  const list = (raw: unknown) => {
+    if (raw == null) return [];
+    if (!Array.isArray(raw)) throw new IntegrationError('invalid_payload');
+    return raw.map(object);
+  };
+  const name = text(game.name);
+  // Alternative names and per-region titles both make the same tag findable (server-8).
+  const alternativeNames = [...new Set([...list(game.alternative_names), ...list(game.game_localizations)]
+    .map(x => nullableText(x.name)).filter((x): x is string => x !== null && x !== name))];
+  const steam = list(game.external_games).map(steamAppIdOf).find(x => x !== null) ?? null;
+  return { id: integer(game.id), name, alternativeNames,
+    platforms: [...new Set(list(game.platforms).map(p => text(p.name)))],
+    coverImageId: game.cover == null ? null : nullableText(object(game.cover).image_id),
+    firstReleaseDate: game.first_release_date == null ? null : new Date(integer(game.first_release_date) * 1000).toISOString().slice(0, 10),
+    steamAppId: steam };
+}
 export class IgdbClient {
   #clientId: string; #secret: string; #gate: ApiGate; #fetch: Fetcher;
   #token: { value: string; expiresAt: number } | null = null;
@@ -40,12 +73,12 @@ export class IgdbClient {
     })();
     try { return await this.#pending; } finally { this.#pending = null; }
   }
-  async #games(query: string): Promise<GameCandidate[]> {
+  async #games<T>(query: string, parse: (value: unknown) => T): Promise<T> {
     for (let attempt = 0; attempt < 2; attempt++) {
       const token = await this.#accessToken();
       const lease = await this.#gate.acquire();
       try {
-        return parseGames(await json('https://api.igdb.com/v4/games', { method: 'POST', headers: { 'Client-ID': this.#clientId, authorization: `Bearer ${token}`, 'content-type': 'text/plain' }, body: query }, this.#fetch));
+        return parse(await json('https://api.igdb.com/v4/games', { method: 'POST', headers: { 'Client-ID': this.#clientId, authorization: `Bearer ${token}`, 'content-type': 'text/plain' }, body: query }, this.#fetch));
       } catch (error) {
         if (attempt === 0 && error instanceof IntegrationError && error.kind === 'unauthorized') { this.#token = null; continue; }
         throw error;
@@ -55,10 +88,15 @@ export class IgdbClient {
   }
   search(query: string, limit: number): Promise<GameCandidate[]> {
     if (!query.trim() || !Number.isSafeInteger(limit) || limit < 1 || limit > 500) throw new IntegrationError('invalid_payload');
-    return this.#games(`search ${JSON.stringify(query.trim())}; fields name,slug,first_release_date,cover.url,platforms.name; limit ${limit};`);
+    return this.#games(`search ${JSON.stringify(query.trim())}; fields name,slug,first_release_date,cover.url,platforms.name; limit ${limit};`, parseGames);
   }
   get(id: number): Promise<GameCandidate[]> {
     if (!Number.isSafeInteger(id) || id < 1) throw new IntegrationError('invalid_payload');
-    return this.#games(`where id = ${id}; fields name,slug,first_release_date,cover.url,platforms.name; limit 1;`);
+    return this.#games(`where id = ${id}; fields name,slug,first_release_date,cover.url,platforms.name; limit 1;`, parseGames);
+  }
+  // The game to save when someone chooses it (ADR-70). null when IGDB has no such game.
+  record(id: number): Promise<GameRecord | null> {
+    if (!Number.isSafeInteger(id) || id < 1) throw new IntegrationError('invalid_payload');
+    return this.#games(`where id = ${id}; fields name,alternative_names.name,game_localizations.name,platforms.name,cover.image_id,first_release_date,external_games.uid,external_games.url,external_games.category; limit 1;`, parseGameRecord);
   }
 }

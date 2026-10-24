@@ -65,8 +65,9 @@ test('An unavailable library clears prior playtime without depending on the prof
   const reading = () => readSteamData({
     ownedGames: async () => ({ status: 'unavailable', source: 'steam', reason: 'not_visible_or_missing' }),
     profile: async () => assert.fail('Profile API must not override the unavailable library'),
+    level: async () => assert.fail('Level API must not override the unavailable library'),
   }, '76561198000000001');
-  const result = await runSync({ linkId: 'a', revision: 'a', previous: { ...initial, value: { profile: null, library: { status: 'available', source: 'steam', fetchedAt: stamp, games: [] } } } }, reading, commit, steamSyncPolicy, start);
+  const result = await runSync({ linkId: 'a', revision: 'a', previous: { ...initial, value: { profile: null, level: null, library: { status: 'available', source: 'steam', fetchedAt: stamp, games: [] } } } }, reading, commit, steamSyncPolicy, start);
   assert.equal(result.snapshot.status, 'unavailable');
   assert.equal(result.snapshot.value, null);
 });

@@ -62,9 +62,11 @@ export class SteamClient {
 
 // Decide library visibility before reading optional profile data. A profile API failure
 // must not keep old playtime visible when the library is no longer available.
-export async function readSteamData(client: Pick<SteamClient, 'ownedGames' | 'profile'>, id: string) {
+export async function readSteamData(client: Pick<SteamClient, 'ownedGames' | 'profile' | 'level'>, id: string) {
   const library = await client.ownedGames(id);
   if (library.status === 'unavailable') return { status: 'unavailable' as const };
   const profile = await client.profile(id);
-  return { status: 'available' as const, value: { profile, library }, fetchedAt: library.fetchedAt };
+  // Steam level is one of the trust indicators (server-41).
+  const level = await client.level(id);
+  return { status: 'available' as const, value: { profile, level, library }, fetchedAt: library.fetchedAt };
 }
