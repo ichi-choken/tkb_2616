@@ -85,7 +85,7 @@ function Screen({ settingsScreen: Settings }: { settingsScreen: ComponentType })
 /* ---------- デモ用の帯 ---------- */
 
 function DemoBar() {
-  const { reset, go } = useStore();
+  const { reset, go, confirm } = useStore();
   const { s, wide, design } = useLayout();
   return (
     <View style={{ backgroundColor: C.stage, borderBottomWidth: 1, borderColor: C.line }}>
@@ -96,7 +96,7 @@ function DemoBar() {
           </Pressable>
           {wide ? <View style={{ flex: 1, alignItems: 'center' }}><DesignSwitcher /></View> : <View style={{ flex: 1 }} />}
           {wide ? <Badge label="画面デモ" tone="rest" /> : null}
-          <Pressable onPress={() => { resetSettings(); reset(); }} accessibilityRole="button" accessibilityLabel="最初から" hitSlop={4}
+          <Pressable onPress={async () => { if (await confirm('この端末に保存したプロフィールも最初の状態に戻しますか？')) { if (await reset()) resetSettings(); } }} accessibilityRole="button" accessibilityLabel="最初から" hitSlop={4}
             style={({ pressed }) => ({ width: s(32), height: s(32), alignItems: 'center', justifyContent: 'center', borderRadius: s(10), backgroundColor: pressed ? C.accentSoft : 'transparent' })}>
             <Feather name="rotate-ccw" size={s(17)} color={C.muted} />
           </Pressable>

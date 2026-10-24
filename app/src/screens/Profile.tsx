@@ -6,7 +6,7 @@ import {
   GAMES, HEAT, PEOPLE, PLATFORMS, REGIONS,
   hasNgWord, isTime, type MyGame, type Person, type PersonId, type Profile,
 } from '../data';
-import { fakeSave, useStore } from '../store';
+import { useStore } from '../store';
 import { AddModal, type AddKind } from '../AddModal';
 import { C, useLayout } from '../theme';
 import {
@@ -22,17 +22,17 @@ export function ProfileScreen() {
 }
 
 function ProfileView() {
-  const { s: st, update, go, copy, toast, open } = useStore();
+  const { s: st, update, editProfile, go, copy, toast, open } = useStore();
   const [adding, setAdding] = useState<AddKind | null>(null);
   const p = st.me;
 
   // 熱量・実力はスライダーでその場で直せる（profile-5）。部品ごとに保存する（ui-1）
-  const setGame = (i: number, key: 'heat' | 'skill', value: number) => {
-    update((d) => { d.me.games[i][key] = value; });
+  const setGame = async (i: number, key: 'heat' | 'skill', value: number) => {
+    if (!(await editProfile(profile => { profile.games[i][key] = value; }))) return;
     toast(key === 'heat' ? `熱量を「${HEAT[value]}」にしました` : `実力を ${value} にしました`);
   };
-  const setHobbyHeat = (i: number, value: number) => {
-    update((d) => { d.me.hobbies[i].heat = value; });
+  const setHobbyHeat = async (i: number, value: number) => {
+    if (!(await editProfile(profile => { profile.hobbies[i].heat = value; }))) return;
     toast(`熱量を「${HEAT[value]}」にしました`);
   };
 
@@ -48,6 +48,7 @@ function ProfileView() {
               <MiniButton label="リンクをコピー" onPress={() => copy(`https://shumitomo.jp/${p.appId}`, 'プロフィールのリンクをコピーしました')} />
             </Row>
           </WhoCard>
+          <Note>プロフィールはこの端末に保存されます。同じブラウザで再読み込みしても残ります。</Note>
           <TimesCard times={p.times} region={p.region} />
         </>}
         right={<>
@@ -167,7 +168,7 @@ function HobbyRow({ name, heat, onHeat }: { name: string; heat: number; onHeat?:
 /* ---------- 編集 ---------- */
 
 function ProfileEdit() {
-  const { s: st, update, toast } = useStore();
+  const { s: st, update, editProfile, toast } = useStore();
   const { s } = useLayout();
   const p = st.draft!;
   const [adding, setAdding] = useState<AddKind | null>(null);
@@ -179,10 +180,9 @@ function ProfileEdit() {
     if (!/^[A-Za-z0-9_]+$/.test(p.appId)) return toast('アプリIDは英数字と _ で入れてください');
     if (!isTime(p.times.start) || !isTime(p.times.end)) return toast('時間帯は 21:00 のように入れてください');
     update((d) => { d.saving = true; d.saveError = false; });
-    await fakeSave();
-    // 成功が確認できた内容を表示する（profile-23）
-    update((d) => { if (d.draft) d.me = d.draft; d.draft = null; d.saving = false; });
-    toast('保存しました');
+    const saved = await editProfile(profile => { Object.assign(profile, JSON.parse(JSON.stringify(p))); });
+    update(d => { d.saving = false; d.saveError = !saved; if (saved) d.draft = null; });
+    if (saved) toast('この端末に保存しました');
   };
 
   const formRow = (label: string, body: React.ReactNode) => (

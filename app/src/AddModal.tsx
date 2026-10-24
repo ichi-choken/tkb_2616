@@ -111,13 +111,16 @@ export function Combobox({ items, placeholder, onPick, onCreate }: {
 /* ---------- モーダル ---------- */
 
 export function AddModal({ kind, onClose }: { kind: AddKind | null; onClose: () => void }) {
-  const { s: st, update, toast } = useStore();
+  const { s: st, update, editProfile, toast } = useStore();
   const { s } = useLayout();
   if (!kind) return null;
 
   // 自分のプロフィールの編集中なら下書きに、そうでなければプロフィールにそのまま足す
   const target = st.draft ?? st.me;
-  const edit = (fn: (p: typeof st.me) => void) => update((d) => fn(d.draft ?? d.me));
+  const edit = async (fn: (p: typeof st.me) => void) => {
+    if (st.draft) { update(d => { if (d.draft) fn(d.draft); }); return true; }
+    return editProfile(fn);
+  };
 
   const items: Item[] =
     kind === 'games'
@@ -126,17 +129,17 @@ export function AddModal({ kind, onClose }: { kind: AddKind | null; onClose: () 
         .filter((n) => !(kind === 'hobbies' ? target.hobbies : target.likes).some((x) => x.name === n))
         .map((n) => ({ key: n, label: n }));
 
-  const add = (name: string, tag?: string) => {
+  const add = async (name: string, tag?: string) => {
     if (hasNgWord(name)) return toast('この言葉は入れられません');
     if (kind === 'games') {
       const t = tag ?? addCustomGame(name);
       if (target.games.some((g) => g.tag === t)) return toast(`${GAMES[t].name}はもう入っています`);
-      edit((p) => { p.games.push({ tag: t, platform: 'Switch', heat: 2, skill: 5 }); });
+      if (!(await edit((p) => { if (!p.games.some(g => g.tag === t)) p.games.push({ tag: t, platform: 'Switch', heat: 2, skill: 5 }); }))) return;
       toast(`${GAMES[t].name}を追加しました`);
     } else {
       const list = kind === 'hobbies' ? target.hobbies : target.likes;
       if (list.some((x) => x.name === name)) return toast(`${name}はもう入っています`);
-      edit((p) => { if (kind === 'hobbies') p.hobbies.push({ name, heat: 2 }); else p.likes.push({ name }); });
+      if (!(await edit((p) => { if (kind === 'hobbies') { if (!p.hobbies.some(h => h.name === name)) p.hobbies.push({ name, heat: 2 }); } else if (!p.likes.some(l => l.name === name)) p.likes.push({ name }); }))) return;
       toast(`${name}を追加しました`);
     }
   };

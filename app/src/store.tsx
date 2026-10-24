@@ -1,6 +1,8 @@
-// アプリの状態と操作。サーバーができたら、保存は fakeSave の代わりに API を呼ぶ。
+// プロフィールは端末内に保存。募集などの共有操作は引き続きデモ。
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Alert, Linking, Platform } from 'react-native';
+import { Alert, Linking, Platform, Pressable, Text, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createProfileRepository } from './profile-storage';
 import * as Clipboard from 'expo-clipboard';
 import {
   GAMES, HEAT, LISTINGS, ME, SAMPLE_REQUESTS,
@@ -167,8 +169,9 @@ type Store = {
   copy: (text: string, message: string) => Promise<void>;
   open: (url: string) => void;
   confirm: (message: string) => Promise<boolean>;
-  reset: () => void;
-  saveGameToProfile: (f: Pick<RecruitForm, 'game' | 'platform' | 'heat' | 'skill'>) => void;
+  reset: () => Promise<boolean>;
+  editProfile: (change: (profile: Profile) => void) => Promise<boolean>;
+  saveGameToProfile: (f: Pick<RecruitForm, 'game' | 'platform' | 'heat' | 'skill'>) => Promise<boolean>;
   publish: (via: 'x' | 'threads' | 'line' | 'copy' | 'none') => Promise<void>;
 };
 
@@ -176,6 +179,10 @@ const StoreContext = createContext<Store | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [s, setS] = useState<State>(() => freshState(isWeb ? hashToRoute(window.location.hash) : undefined));
+  const [profiles] = useState(() => createProfileRepository(AsyncStorage));
+  const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [toastText, setToast] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -192,6 +199,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setToast(null), 2400);
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    void profiles.load().then(profile => {
+      if (!active) return;
+      update(d => { d.me = profile; d.rec.form = newRecruitForm(profile.games[0]?.tag ?? 'apex', profile.games); });
+      setReady(true);
+    }).catch(() => { if (active) setLoadError(true); });
+    return () => { active = false; };
+  }, [profiles, update, loadAttempt]);
+
+  const editProfile = useCallback(async (change: (profile: Profile) => void) => {
+    try {
+      const profile = await profiles.edit(change);
+      update(d => { d.me = profile; });
+      return true;
+    } catch {
+      toast('この端末に保存できませんでした。もう一度お試しください');
+      return false;
+    }
+  }, [profiles, update, toast]);
 
   const setRoute = useCallback((route: Route) => {
     update((d) => {
@@ -250,20 +278,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const reset = useCallback(() => {
-    setS(freshState());
-    if (isWeb) window.location.hash = '#/profile';
-    toast('最初の状態に戻しました');
-  }, [toast]);
+  const reset = useCallback(async () => {
+    try {
+      await profiles.reset();
+      setS(freshState());
+      setReady(true);
+      setLoadError(false);
+      if (isWeb) window.location.hash = '#/profile';
+      toast('保存内容を消して、最初の状態に戻しました');
+      return true;
+    } catch {
+      toast('保存内容を消せませんでした。もう一度お試しください');
+      return false;
+    }
+  }, [profiles, toast]);
 
   const saveGameToProfile = useCallback((f: Pick<RecruitForm, 'game' | 'platform' | 'heat' | 'skill'>) => {
-    update((d) => {
-      const g = d.me.games.find((x) => x.tag === f.game);
+    return editProfile(profile => {
+      const game = profile.games.find(x => x.tag === f.game);
       const values = { platform: f.platform, heat: f.heat, skill: f.skill };
-      if (g) Object.assign(g, values);
-      else d.me.games.push({ tag: f.game, ...values });
+      if (game) Object.assign(game, values);
+      else profile.games.push({ tag: f.game, ...values });
     });
-  }, [update]);
+  }, [editProfile]);
 
   const publish = useCallback(async (via: 'x' | 'threads' | 'line' | 'copy' | 'none') => {
     const text = inviteText(s.rec.form, s.rec.parts);
@@ -272,7 +309,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return;
     }
     await fakeSave();
-    if (s.rec.form.saveToProfile) saveGameToProfile(s.rec.form);
+    if (s.rec.form.saveToProfile && !(await saveGameToProfile(s.rec.form))) return;
     update((d) => {
       d.rec.stage = 'posted';
       d.rec.status = 'open';
@@ -290,9 +327,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [s.rec.form, s.rec.parts, toast, update, open, copy, go, saveGameToProfile]);
 
   const value = useMemo<Store>(() => ({
-    s, update, go, toast, toastText, copy, open, confirm, reset, saveGameToProfile, publish,
-  }), [s, update, go, toast, toastText, copy, open, confirm, reset, saveGameToProfile, publish]);
+    s, update, go, toast, toastText, copy, open, confirm, reset, editProfile, saveGameToProfile, publish,
+  }), [s, update, go, toast, toastText, copy, open, confirm, reset, editProfile, saveGameToProfile, publish]);
 
+  if (!ready) return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16, backgroundColor: '#fff9e9' }}>
+    <Text>{loadError ? '保存したプロフィールを読み込めませんでした。保存内容は上書きしていません。' : '保存したプロフィールを読み込んでいます…'}</Text>
+    {loadError ? <Pressable accessibilityRole="button" onPress={() => { setLoadError(false); setLoadAttempt(value => value + 1); }} style={{ padding: 14 }}><Text>もう一度読み込む</Text></Pressable> : null}
+    {loadError && toastText ? <Text accessibilityRole="alert">{toastText}</Text> : null}
+    {loadError ? <Pressable accessibilityRole="button" onPress={async () => { if (await confirm('この端末のプロフィール保存内容を消して、最初から始めますか？')) await reset(); }} style={{ padding: 14 }}><Text>保存内容を消して最初から始める</Text></Pressable> : null}
+  </View>;
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 

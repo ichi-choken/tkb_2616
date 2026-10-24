@@ -45,7 +45,7 @@ export const GAMES: Record<GameTag, Game> = {
 
 // 候補に無いゲームを足す。名前から色を決める
 export function addCustomGame(name: string): GameTag {
-  const found = Object.keys(GAMES).find((t) => GAMES[t].name === name);
+  const found = Object.keys(GAMES).find((t) => GAMES[t]?.name === name);
   if (found) return found;
   const tag = `custom:${name}`;
   let h = 0;

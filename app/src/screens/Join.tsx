@@ -66,7 +66,7 @@ function ListingCard({ l, pinned }: { l: Listing; pinned?: boolean }) {
       if (checkGameId(par.gameId)) return;
     }
     await fakeSave();
-    if (par.saveToProfile) saveGameToProfile({ game: l.game, platform: l.platform, heat: l.heat, skill: l.skill });
+    if (par.saveToProfile && !(await saveGameToProfile({ game: l.game, platform: l.platform, heat: l.heat, skill: l.skill }))) return;
     update((d) => { d.par.sent = true; d.par.listing = l.id; d.par.openJoin = null; d.par.result = 'waiting'; });
     toast('参加希望を送りました');
     go('matched');
