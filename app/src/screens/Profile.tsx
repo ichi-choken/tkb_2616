@@ -3,7 +3,7 @@ import { useState, useSyncExternalStore } from 'react';
 import { Pressable, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import {
-  GAMES, HEAT, PEOPLE, PLATFORMS, REGIONS,
+  GAMES, HEAT, PEOPLE, PLATFORMS, REGION_OPTIONS,
   hasNgWord, isPersonId, isTime, type MyGame, type Person, type PersonId, type Profile,
 } from '../data';
 import { useStore } from '../store';
@@ -218,13 +218,14 @@ function ProfileEdit() {
               <Note color={C.warn}>ゲーム内IDやSNSの名前とは別にしておくと安心です</Note>
             </>)}
             <Divider />
+            {/* 「24:00」が収まる幅にそろえ、横にはみ出さないようにする */}
             {formRow('遊ぶ時間帯', <Row>
-              <Field mono value={p.times.start} maxLength={5} style={{ flex: 1 }} onChangeText={(v) => set((d) => { d.times.start = v; })} />
+              <Field mono value={p.times.start} maxLength={5} style={{ width: s(76), textAlign: 'center' }} onChangeText={(v) => set((d) => { d.times.start = v; })} />
               <Txt>〜</Txt>
-              <Field mono value={p.times.end} maxLength={5} style={{ flex: 1 }} onChangeText={(v) => set((d) => { d.times.end = v; })} />
+              <Field mono value={p.times.end} maxLength={5} style={{ width: s(76), textAlign: 'center' }} onChangeText={(v) => set((d) => { d.times.end = v; })} />
             </Row>)}
             <Divider />
-            {formRow('地方', <Opts items={REGIONS} value={p.region as (typeof REGIONS)[number]} onChange={(v) => set((d) => { d.region = v; })} />)}
+            {formRow('地方', <Opts items={REGION_OPTIONS} value={p.region as (typeof REGION_OPTIONS)[number]} onChange={(v) => set((d) => { d.region = v; })} />)}
           </Card>
         }
         right={<>

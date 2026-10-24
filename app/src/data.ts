@@ -8,6 +8,9 @@ export const SKILLS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
 export const PLATFORMS = ['Switch', 'Switch 2', 'PlayStation', 'PC（Steam）', 'スマホ', 'その他'] as const;
 // 住んでいる地方は区分だけ（ADR-30）
 export const REGIONS = ['北海道・東北', '関東', '甲信越', '北陸', '東海', '近畿', '中国', '四国', '九州・沖縄'] as const;
+// 地方は選ばなくてもよい。最初は「選択しない」
+export const NO_REGION = '選択しない';
+export const REGION_OPTIONS = [NO_REGION, ...REGIONS] as const;
 export const VC = ['あり', '聞き専OK', 'なし'] as const;
 export const WHEN = ['今夜', '明日', '週末', '未定'] as const;
 // 名前・ゲーム内IDに入れられない言葉（app-24）
@@ -105,7 +108,7 @@ export const ME: Profile = {
     { name: '少年漫画' },
   ],
   times: { start: '21:00', end: '24:00' },
-  region: '東海',
+  region: NO_REGION,
 };
 
 export const PEOPLE: Record<PersonId, Person> = {
