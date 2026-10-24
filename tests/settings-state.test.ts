@@ -75,6 +75,42 @@ test('late response cannot restore previous user links after logout or account s
   stop();
 });
 
+test('re-checking on window focus keeps a known status usable: the first click still starts linking', async () => {
+  const later = deferred<LinkStatus[]>();
+  let calls = 0;
+  let started = 0;
+  const { controller, user, stop } = setup({
+    links: () => ++calls === 1 ? Promise.resolve([steam]) : later.promise,
+    link: async () => { started++; return 'redirecting'; },
+  });
+  user('a'); await settle();
+  // 窓に戻ったときの再確認（focus）。確認中でも、分かっている状態は使えるままにする
+  const refreshing = controller.refresh();
+  assert.equal(controller.getSnapshot().linksLoading, false);
+  assert.deepEqual(controller.getSnapshot().links, [steam]);
+  await controller.link('discord');
+  assert.equal(started, 1);
+  later.resolve([steam]); await refreshing;
+  assert.deepEqual(controller.getSnapshot().links, [steam]);
+  stop();
+});
+
+test('first load and reload after a failure still show loading', async () => {
+  let fail = true;
+  const pending = deferred<LinkStatus[]>();
+  const { controller, user, stop } = setup({ links: () => fail ? Promise.reject(new Error('offline')) : pending.promise });
+  user('a');
+  assert.equal(controller.getSnapshot().linksLoading, true);
+  await settle();
+  assert.equal(controller.getSnapshot().linksError, true);
+  fail = false;
+  const retry = controller.refresh();
+  assert.equal(controller.getSnapshot().linksLoading, true);
+  pending.resolve([steam]); await retry;
+  assert.equal(controller.getSnapshot().linksLoading, false);
+  stop();
+});
+
 test('cancelled relink and failed unlink preserve current link', async () => {
   const { controller, user, stop } = setup({ unlink: async () => { throw new Error('offline'); } });
   user('a'); await settle();

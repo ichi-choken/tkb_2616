@@ -49,7 +49,9 @@ export function createSettingsController(port: SettingsPort | null, configuratio
     if (!active || !port || !state.userId) return;
     const version = generation;
     const sequence = ++request;
-    patch({ linksLoading: true, linksError: false });
+    // 状態が分かっているときの再確認（窓に戻ったときなど）は裏で行い、ボタンを止めない。
+    // 止めると、窓を選ぶための最初のクリックで確認が始まり、そのクリック自体が無視される
+    patch({ linksLoading: state.links === null, linksError: false });
     try {
       const links = await port.links();
       if (active && version === generation && sequence === request) patch({ links, linksLoading: false });
