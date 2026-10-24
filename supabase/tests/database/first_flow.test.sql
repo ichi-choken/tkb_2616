@@ -98,7 +98,8 @@ grant select on c_app to anon, authenticated;
 
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
 select is((select count(*)::int from public.applications), 2, '募集する人には、届いた参加希望が見える');
-select is((select count(*)::int from public.application_game_ids), 0, '承認する前は、ニックネームのある参加者のゲーム内IDは見えない');
+select is((select array_agg(game_account_id order by game_account_id) from public.application_game_ids), array['PLAYER1', 'PLAYER2'],
+  '承認する前から、承認待ちの参加者のゲーム内IDが募集する人に見える（server-28、ADR-90）');
 select is(
   (select count(*)::int from public.notifications where kind = '参加希望が届いた'),
   2, '参加希望が届くと、募集する人に知らせが届く（app-17）');
@@ -123,7 +124,7 @@ select is(
 select is((select public.matched_count(r) from public.recruitments r where r.id = (select id from r1)), 1,
   '成立人数は募集人数を超えない');
 select is((select game_account_id from public.application_game_ids), 'PLAYER1',
-  '成立した相手のゲーム内IDだけが、募集する人に見える');
+  '成立した相手のゲーム内IDが募集する人に見え、満員で終わった人の分は見えない');
 
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000b');
 select is((select public.state(a) from public.applications a), '成立', '承認された人は成立になる');

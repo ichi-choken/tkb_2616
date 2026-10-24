@@ -335,7 +335,7 @@ export function RequestsScreen() {
   );
 }
 
-// 参加希望に出るのは、名前・合う理由・信頼の目安だけ（requests-2）。断るボタンは無い（requests-5）
+// 参加希望に出るのは、名前・合う理由・信頼の目安と、IDが要る募集ではゲーム内IDだけ（requests-2）。断るボタンは無い（requests-5）
 function RequestRow({ q, canApprove, showId, onApprove }: { q: Request; canApprove: boolean; showId: boolean; onApprove: () => void }) {
   const { copy } = useStore();
   const p = PEOPLE[q.person];
@@ -349,7 +349,8 @@ function RequestRow({ q, canApprove, showId, onApprove }: { q: Request; canAppro
           {q.status === 'matched' ? <Badge label="✓ 成立" tone="ok" />
             : <PillButton ok label={q.busy ? '承認中…' : '承認'} disabled={!canApprove || q.busy} onPress={onApprove} />}
         </Row>
-        {q.status === 'matched' && showId ? (
+        {/* 承認の前から出し、規約違反のIDに承認前に気づけるようにする（requests-2、ADR-90） */}
+        {showId ? (
           <InfoRow label="ゲーム内ID" value={q.gameId} action={<MiniButton label="コピー" onPress={() => copy(q.gameId, 'コピーしました')} />} />
         ) : null}
       </Stack>

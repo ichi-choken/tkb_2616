@@ -87,8 +87,8 @@ select is(public.apply_to_recruitment(gen_random_uuid(), (select id from r1), 'C
   'ニックネームの無い c が参加希望を送る');
 
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
-select is((select array_agg(game_account_id order by game_account_id) from public.application_game_ids), array['CID01'],
-  '成立する前は、ニックネームの無い人のゲーム内IDだけが見える（requests-3）');
+select is((select array_agg(game_account_id order by game_account_id) from public.application_game_ids), array['BID01', 'CID01'],
+  '成立する前から、ニックネームの有無によらず承認待ちの人のゲーム内IDが見える（requests-3、ADR-90）');
 select is(
   public.approve_application(gen_random_uuid(),
     (select id from public.applications where applicant_id = '00000000-0000-0000-0000-00000000000b'))->>'state',

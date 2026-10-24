@@ -103,7 +103,7 @@ function ListingCard({ l, pinned }: { l: Listing; pinned?: boolean }) {
                 onChangeText={(v) => update((d) => { d.par.gameId = v.trim(); })} onSubmitEditing={send} />
               <Note color={C.warn}>SNSと同じ名前を使っていませんか？</Note>
               {err ? <Txt size={13} weight="bold" color={C.danger}>{err}</Txt> : null}
-              <Note>ゲーム内IDは、承認されたときだけ相手に見えます。</Note>
+              <Note>ゲーム内IDは、参加希望を送ると募集した人に見えます。</Note>
             </> : <Note>この募集は部屋番号で入ります。ゲーム内IDは要りません。</Note>}
             <Check label="プロフィールにも保存" value={par.saveToProfile} onChange={(v) => update((d) => { d.par.saveToProfile = v; })} />
             <Row>

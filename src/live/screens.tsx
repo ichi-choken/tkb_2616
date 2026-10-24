@@ -596,7 +596,8 @@ function RequestsScreen({ params }: Params) {
                 {/* There is no button to turn someone down (requests-5) */}
                 {a.state === '待っている' ? <PillButton ok label={approving === a.id ? '承認しています…' : '承認'} disabled={!isAccepting(r.status) || approving !== null} onPress={() => approve(a)} /> : null}
               </Row>
-              {a.state === '成立' && r.needs_participant_id && gameId ? (
+              {/* 承認の前から出し、規約違反のIDに承認前に気づけるようにする（requests-2、ADR-90） */}
+              {(a.state === '待っている' || a.state === '成立') && r.needs_participant_id && gameId ? (
                 <InfoRow label="ゲーム内ID" value={gameId} action={<MiniButton label="コピー" onPress={() => copy(gameId, 'コピーしました')} />} />
               ) : null}
             </Stack>
@@ -712,7 +713,7 @@ function ListingCard({ r, pinned, uid, mine, trust }: { r: Recruitment; pinned: 
               <Field mono value={gameId} placeholder="英数字だけ" autoCapitalize="none" autoCorrect={false} onChangeText={v => setGameId(v.trim())} onSubmitEditing={send} />
               <Note color={C.warn}>SNSと同じ名前を使っていませんか？</Note>
               {err ? <Txt size={13} weight="bold" color={C.danger}>{err}</Txt> : null}
-              <Note>ゲーム内IDは、承認されたときだけ相手に見えます。</Note>
+              <Note>ゲーム内IDは、参加希望を送ると募集した人に見えます。</Note>
             </> : <Note>この募集は、募集した人が入れる部屋番号などで入ります。ゲーム内IDは要りません。</Note>}
             <Row>
               <MainButton label={applying.busy ? '送っています…' : '参加希望を送る'} disabled={applying.busy} onPress={send} style={{ flex: 1 }} />
