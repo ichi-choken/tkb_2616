@@ -5,7 +5,7 @@ import { Image, Platform, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import { useStore, type InviteParts } from '../../app/src/store';
 import { C, useLayout } from '../../app/src/theme';
-import { HEAT, PLATFORMS, VC, checkGameId, isTime } from '../../app/src/data';
+import { GAMES, HEAT, PLATFORMS, VC, checkGameId, isTime } from '../../app/src/data';
 import { UNDECIDED, formatWhen, toISO, todayISO } from '../../app/src/dates';
 import { DateTimeField } from '../../app/src/DateTimeField';
 import {
@@ -16,6 +16,8 @@ import { InfoRow, JoinInfo } from '../../app/src/screens/Recruit';
 import { saveGame, searchGames } from '../lib/games';
 import { steamTrustOf, type UserSteamTrust } from '../lib/trust';
 import { rememberReturn } from './return-to';
+import { createRecruitmentDraftStore, exactSavedGame, gameRouteInput, type RecruitmentDraft } from './create-draft';
+import { createOperation } from './operation';
 import {
   applicationsFor, applyToRecruitment, approveApplication, changeRecruitment, failureText, gameAccountIdOf, getGame,
   getRecruitment, isAccepting, isFinished, meetingFor, myApplicationFor, myApplications, myApplicationsIn, myRecruitments,
@@ -25,6 +27,15 @@ import {
 
 type Params = { params: Record<string, string> };
 type Go = ReturnType<typeof useStore>['go'];
+
+// OAuth returns to the same browser tab. Native OAuth opens a browser without reloading this
+// module, so its pending draft needs only memory until the person returns to the app.
+const nativeDrafts = new Map<string, string>();
+const loginDrafts = createRecruitmentDraftStore({
+  getItem: key => Platform.OS === 'web' ? window.sessionStorage.getItem(key) : nativeDrafts.get(key) ?? null,
+  setItem: (key, value) => { if (Platform.OS === 'web') window.sessionStorage.setItem(key, value); else nativeDrafts.set(key, value); },
+  removeItem: key => { if (Platform.OS === 'web') window.sessionStorage.removeItem(key); else nativeDrafts.delete(key); },
+});
 
 /* ---------- Shared pieces ---------- */
 
@@ -112,9 +123,9 @@ function Loading({ error, what, onRetry }: { error: boolean; what: string; onRet
     ? <Card><Empty title={`${what}を読み込めませんでした`} text="" button={{ label: 'もう一度読み込む', onPress: onRetry }} /></Card>
     : <Card pad><Note>読み込んでいます…</Note></Card>;
 }
-function LoginCard({ text }: { text: string }) {
+function LoginCard({ text, onLogin }: { text: string; onLogin?: () => void }) {
   const { go, toast } = useStore();
-  return <Card><Empty title="ログインが要ります" text={text} button={{ label: 'ログインする', onPress: () => askLogin(go, toast) }} /></Card>;
+  return <Card><Empty title="ログインが要ります" text={text} button={{ label: 'ログインする', onPress: onLogin ?? (() => askLogin(go, toast)) }} /></Card>;
 }
 
 function trustLabel(u: UserSteamTrust) {
@@ -144,20 +155,16 @@ function useTrust(userIds: string[], gameId: number | null) {
 
 // One operation id per action until the server answers, so a resend never publishes twice (recruit-18)
 function useOperation() {
-  const op = useRef<string | null>(null);
+  const [operation] = useState(() => createOperation(newOpId));
   const [busy, setBusy] = useState(false);
-  const run = useCallback(async <T,>(send: (opId: string) => Promise<T>): Promise<T | null> => {
-    if (op.current && busy) return null;
-    op.current ??= newOpId();
+  const run = useCallback(async <T,>(send: (opId: string) => Promise<T>, key: string): Promise<T | null> => {
+    if (operation.isPending()) return null;
     setBusy(true);
     try {
-      const result = await send(op.current);
-      op.current = null;
-      return result;
+      return await operation.run(send, key);
     } finally { setBusy(false); }
-  }, [busy]);
-  const reset = useCallback(() => { op.current = null; }, []);
-  return { run, busy, reset };
+  }, [operation]);
+  return { run, busy };
 }
 
 function FormRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -263,21 +270,75 @@ function CreateScreen({ params }: Params) {
   const [room, setRoom] = useState('');
   const [url, setUrl] = useState('');
   const [parts, setParts] = useState<InviteParts>(ALL_PARTS);
+  const [ready, setReady] = useState<{ ownerId: string | null; sourceGame: string | null } | null>(null);
+  const restoredDraft = useRef<{ ownerId: string | null; sourceGame: string | null; draft: RecruitmentDraft | null } | null>(null);
   const publishing = useOperation();
+
+  const snapshot = (pendingGameId: number | null = null): RecruitmentDraft => ({
+    sourceGame: params.game ?? null, game, pendingGameId, query, when, time, need, platform, vc, heat, skill, needsId, mode, room, url, parts,
+  });
+  const login = (pendingGameId: number | null = null) => {
+    if (uid === undefined) return;
+    if (!loginDrafts.save(snapshot(pendingGameId), uid)) return toast('入力内容を保存できませんでした。もう一度お試しください');
+    askLogin(go, toast);
+  };
+  const restore = (draft: RecruitmentDraft | null) => {
+    setGame(draft?.game ?? null); setQuery(draft?.query ?? ''); setFound(null); setSearchNote(''); setSearching(false); setChoosing(null);
+    setWhen(draft?.when ?? todayISO()); setTime(draft?.time ?? '21:00'); setNeed(draft ? draft.need : 3);
+    setPlatform(draft?.platform ?? null); setVc(draft?.vc ?? null); setHeat(draft?.heat ?? 2); setSkill(draft?.skill ?? 5);
+    setNeedsId(draft?.needsId ?? null); setMode(draft?.mode ?? null); setRoom(draft?.room ?? ''); setUrl(draft?.url ?? '');
+    setParts(draft?.parts ?? ALL_PARTS);
+  };
 
   const pick = (g: GameRow) => {
     setGame(g); setFound(null); setQuery(''); setMode(null);
     // Curated games come with whether a participant ID is needed (ADR-28); others are chosen by hand
     setNeedsId(g.needs_participant_id_default);
   };
-  // Opened from a game: start with it selected (profile-4)
+  // Restore the input after sign-in before resolving a profile game's tag. In particular, do not
+  // overwrite a restored ID choice or carry a previous account's room details to a new account.
   useEffect(() => {
-    const id = Number(params.game);
-    if (!params.game || !Number.isSafeInteger(id)) return;
-    getGame(id).then(g => { if (g) pick(g); }).catch(() => undefined);
-  }, [params.game]); // eslint-disable-line react-hooks/exhaustive-deps
-  // A changed form is a new operation
-  useEffect(() => publishing.reset(), [game, when, time, need, platform, vc, heat, skill, needsId, mode, room, url]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (uid === undefined) return;
+    let active = true;
+    const sourceGame = params.game ?? null;
+    if (!restoredDraft.current || restoredDraft.current.ownerId !== uid || restoredDraft.current.sourceGame !== sourceGame) {
+      restoredDraft.current = { ownerId: uid, sourceGame, draft: loginDrafts.take(uid, sourceGame) };
+    }
+    const draft = restoredDraft.current.draft;
+    restore(draft); setReady({ ownerId: uid, sourceGame });
+    if (draft) {
+      if (draft.pendingGameId !== null && uid) {
+        setChoosing(draft.pendingGameId);
+        saveGame(draft.pendingGameId).then(g => { if (active) pick(g as GameRow); })
+          .catch(() => { if (active) toast('ゲームを選べませんでした。もう一度お試しください'); })
+          .finally(() => { if (active) setChoosing(null); });
+      }
+      return () => { active = false; };
+    }
+    const input = gameRouteInput(params.game, GAMES);
+    if (!input) return;
+    if ('id' in input) {
+      getGame(input.id).then(g => { if (active && g) pick(g); })
+        .catch(() => { if (active) setSearchNote('ゲームを読み込めませんでした。名前で探し直せます'); });
+    } else {
+      setQuery(input.query); setSearching(true);
+      const findGame = async () => {
+        const saved = await searchSavedGames(input.query).catch(() => []);
+        if (!active) return;
+        const selected = exactSavedGame(saved, input.query);
+        if (selected) { pick(selected); return; }
+        const list: Candidate[] = saved.map(g => ({ saved: g }));
+        const igdb = await searchGames(input.query, 8).catch(() => null);
+        if (!active) return;
+        const known = new Set(list.map(c => 'saved' in c ? c.saved.id : c.igdb.id));
+        if (igdb) for (const g of igdb.games) if (!known.has(g.id)) list.push({ igdb: g });
+        setFound(list);
+        setSearchNote(list.length ? 'プロフィールのゲームの候補を確認してください' : 'この名前では候補が見つかりませんでした。名前を変えて探せます');
+      };
+      void findGame().finally(() => { if (active) setSearching(false); });
+    }
+    return () => { active = false; };
+  }, [params.game, uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const search = async () => {
     const q = query.trim();
@@ -294,7 +355,7 @@ function CreateScreen({ params }: Params) {
   };
   const choose = async (c: Candidate) => {
     if ('saved' in c) return pick(c.saved);
-    if (!uid) return askLogin(go, toast);
+    if (!uid) return login(c.igdb.id);
     setChoosing(c.igdb.id);
     try { pick(await saveGame(c.igdb.id) as GameRow); }
     catch { toast('ゲームを選べませんでした。もう一度お試しください'); }
@@ -304,7 +365,7 @@ function CreateScreen({ params }: Params) {
   const fields: InviteFields = { when, time, need, platform, vc, skill, heat };
   const preview = game ? inviteText(game, fields, parts, null) : '';
   const publish = async (via: 'x' | 'threads' | 'line' | 'copy' | 'none') => {
-    if (!uid) return askLogin(go, toast);
+    if (!uid) return login();
     if (!game) return toast('ゲームを選んでください');
     if (needsId === null) return toast('参加する人のIDが要るかを選んでください');
     let startsAt: Date | null = null;
@@ -312,18 +373,21 @@ function CreateScreen({ params }: Params) {
       if (!isTime(time)) return toast('時刻を選んでください');
       startsAt = new Date(`${when}T${time.padStart(5, '0')}:00`);
       if (Number.isNaN(startsAt.getTime())) return toast('時刻を選んでください');
+      // eslint-disable-next-line react-hooks/purity -- 公開ボタンの押下時に現在時刻と比べる。レンダー中には呼ばない。
       if (startsAt.getTime() <= Date.now()) return toast('過ぎた日時は選べません');
     }
     if (/\s/.test(room.trim())) return toast('部屋番号などに空白は入れられません');
     if (url.trim() && !/^https:\/\/\S+$/.test(url.trim())) return toast('招待URLは https:// から入れてください');
     if (via === 'x' && xLength(preview, null) > 140) return toast('招待状が長すぎます。載せる項目を減らしてください');
     try {
-      const result = await publishing.run(opId => publishRecruitment(opId, {
+      const input = {
         gameId: game.id, needsParticipantId: needsId, startsAt: startsAt?.toISOString() ?? null, capacity: need,
         voiceChat: vc, skill, enthusiasm: heat + 1, mode, platform, roomCode: room.trim() || null, inviteUrl: url.trim() || null,
-      }));
+      };
+      const result = await publishing.run(opId => publishRecruitment(opId, input), JSON.stringify([uid, input]));
       if (!result) return;
-      if (!result.ok) return result.reason === 'login_required' ? askLogin(go, toast) : toast(failureText(result));
+      if (!result.ok) return result.reason === 'login_required' ? login() : toast(failureText(result));
+      loginDrafts.clear();
       // Only a link whose publish is confirmed is shared (recruit-18)
       const link = shareUrl(result.recruitment_id);
       const text = inviteText(game, fields, parts, link);
@@ -413,7 +477,7 @@ function CreateScreen({ params }: Params) {
 
   const side = (
     <>
-      {uid === null ? <LoginCard text="募集を出すにはログインします。入力した内容は、この画面に残ります。" /> : null}
+      {uid === null ? <LoginCard text="募集を出すにはログインします。入力した内容は、ログイン後に戻せます。" onLogin={() => login()} /> : null}
       <Block title="招待状" right={game ? <Note color={xLength(preview, null) > 140 ? C.danger : C.muted}>{xLength(preview, null)} / 140字</Note> : undefined}>
         <Card>
           <Row gap={6} wrap style={{ padding: s(12), paddingBottom: s(8) }}>
@@ -440,7 +504,8 @@ function CreateScreen({ params }: Params) {
   return (
     <Stack>
       <AppBar title="募集を出す" onBack={() => go('recruit')} />
-      <Cols even left={form} right={side} />
+      {uid === undefined || ready?.ownerId !== uid || ready?.sourceGame !== (params.game ?? null)
+        ? <Loading error={false} what="募集の下書き" onRetry={() => {}} /> : <Cols even left={form} right={side} />}
     </Stack>
   );
 }
@@ -489,7 +554,7 @@ function RequestsScreen({ params }: Params) {
   const act = async (action: RecruitmentAction) => {
     if (action === 'cancel' && !(await confirm('開催を中止しますか？成立した人の画面にも、中止と出ます。'))) return;
     try {
-      const res = await changing.run(opId => changeRecruitment(opId, r.id, action));
+      const res = await changing.run(opId => changeRecruitment(opId, r.id, action), JSON.stringify([uid, r.id, action]));
       if (res && !res.ok) toast(failureText(res));
       else if (res) toast({ close: '募集の受付を終えました', cancel: '開催を中止しました', start_play: '遊び始めました', end_play: '遊びを終えました' }[action]);
       await load();
@@ -516,8 +581,9 @@ function RequestsScreen({ params }: Params) {
     if (nextUrl && !/^https:\/\/\S+$/.test(nextUrl)) return toast('招待URLは https:// から入れてください');
     try {
       // '' clears a value
-      const res = await meetingOp.run(opId => updateMeeting(opId, r.id, nextRoom, nextUrl));
-      if (res && !res.ok) return toast(failureText(res));
+      const res = await meetingOp.run(opId => updateMeeting(opId, r.id, nextRoom, nextUrl), JSON.stringify([uid, r.id, nextRoom, nextUrl]));
+      if (!res) return;
+      if (!res.ok) return toast(failureText(res));
       setRoom(null); setUrl(null);
       toast('入る場所を保存しました');
       await load();
@@ -526,8 +592,9 @@ function RequestsScreen({ params }: Params) {
   const reopen = async () => {
     const next = capacity ?? (r.capacity ?? 0) + 1;
     try {
-      const res = await reopening.run(opId => reopenWithMoreCapacity(opId, r.id, next));
-      if (res && !res.ok) return toast(failureText(res));
+      const res = await reopening.run(opId => reopenWithMoreCapacity(opId, r.id, next), JSON.stringify([uid, r.id, next]));
+      if (!res) return;
+      if (!res.ok) return toast(failureText(res));
       setCapacity(null);
       toast(`${next}人に増やして、受付を再開しました`);
       await load();
@@ -679,7 +746,8 @@ function ListingCard({ r, pinned, uid, mine, trust }: { r: Recruitment; pinned: 
     if (!uid) return askLogin(go, toast);
     if (r.needs_participant_id) { setTouched(true); if (checkGameId(gameId)) return; }
     try {
-      const res = await applying.run(opId => applyToRecruitment(opId, r.id, r.needs_participant_id ? gameId : null));
+      const accountId = r.needs_participant_id ? gameId : null;
+      const res = await applying.run(opId => applyToRecruitment(opId, r.id, accountId), JSON.stringify([uid, r.id, accountId]));
       if (!res) return;
       if (!res.ok) return res.reason === 'login_required' ? askLogin(go, toast) : toast(failureText(res));
       toast('参加希望を送りました');

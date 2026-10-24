@@ -129,10 +129,10 @@ export const failureText = (f: Failure) => `${REASONS[f.reason] ?? 'できませ
 
 // undefined while the session is being read
 export function useUserId(): string | null | undefined {
-  const [id, setId] = useState<string | null | undefined>(undefined);
+  const [id, setId] = useState<string | null | undefined>(() => getSupabase() ? undefined : null);
   useEffect(() => {
     const client = getSupabase();
-    if (!client) { setId(null); return; }
+    if (!client) return;
     let active = true;
     void client.auth.getSession().then(({ data }) => { if (active) setId(data.session?.user.id ?? null); });
     const { data } = client.auth.onAuthStateChange((_event, session) => setId(session?.user.id ?? null));
@@ -144,7 +144,7 @@ export function useUserId(): string | null | undefined {
 // Changes arrive through Realtime; on (re)connecting and on returning to the screen, read again (ADR-66)
 export function useLive(changes: { table: string; filter?: string }[], reload: () => void, key: string) {
   const latest = useRef(reload);
-  latest.current = reload;
+  useEffect(() => { latest.current = reload; }, [reload]);
   useEffect(() => {
     const run = () => latest.current();
     // Read now; Realtime may be slow to connect or unavailable
