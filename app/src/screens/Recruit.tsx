@@ -13,11 +13,11 @@ import {
 } from '../ui';
 
 function FormRow({ label, children }: { label: string; children: React.ReactNode }) {
-  const { s } = useLayout();
+  const { s, wide } = useLayout();
   return (
-    <Row gap={8} style={{ alignItems: 'flex-start', padding: s(12) }}>
-      <Txt size={12} weight="bold" color={C.muted} style={{ width: s(64), paddingTop: s(4) }}>{label}</Txt>
-      <Stack gap={6} style={{ flex: 1, minWidth: 0 }}>{children}</Stack>
+    <Row gap={wide ? 8 : 6} style={{ flexDirection: wide ? 'row' : 'column', alignItems: 'flex-start', padding: s(12) }}>
+      <Txt size={13} weight="bold" color={C.muted} style={{ width: wide ? s(64) : undefined, paddingTop: wide ? s(4) : 0 }}>{label}</Txt>
+      <Stack gap={6} style={{ flex: wide ? 1 : undefined, width: wide ? undefined : '100%', minWidth: 0 }}>{children}</Stack>
     </Row>
   );
 }

@@ -94,7 +94,8 @@ export function useLayout() {
   const id = useSyncExternalStore(subscribe, getSnapshot, () => 'play' as DesignId);
   const { width } = useWindowDimensions();
   const wide = width >= WIDE;
-  const k = wide ? 1.15 : 1;
+  // 広い画面では列を増やす。文字や余白まで拡大して情報量を減らさない。
+  const k = 1;
   const s = (n: number) => Math.round(n * k);
   return { wide, width, s, k, design: DESIGNS[id] };
 }

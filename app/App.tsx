@@ -1,5 +1,5 @@
 // Shumitomo のフロント（デモ）。Expo（React Native）と TypeScript で、スマホのアプリとウェブを1つのコードで作る
-import { useRef, useEffect, type ComponentType } from 'react';
+import { useRef, useEffect, useState, type ComponentType } from 'react';
 import { Platform, Pressable, ScrollView, View, type ScrollViewInstance } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,7 +10,7 @@ import { DelaGothicOne_400Regular } from '@expo-google-fonts/dela-gothic-one/400
 import { ZenKakuGothicNew_400Regular } from '@expo-google-fonts/zen-kaku-gothic-new/400Regular';
 import { ZenKakuGothicNew_700Bold } from '@expo-google-fonts/zen-kaku-gothic-new/700Bold';
 import { ROUTE_TAB, StoreProvider, resolveRoute, useStore, type Tab } from './src/store';
-import { C, shadow, useLayout } from './src/theme';
+import { C, useLayout } from './src/theme';
 import { Badge, Row, Txt } from './src/ui';
 import { DesignSwitcher } from './src/DesignSwitcher';
 import { PersonScreen, ProfileScreen, SearchIdScreen } from './src/screens/Profile';
@@ -49,17 +49,18 @@ function Shell({ settingsScreen, liveScreens }: { settingsScreen: ComponentType;
   const { s: st } = useStore();
   const { s, wide } = useLayout();
   const route = resolveRoute(st);
+  const editingProfile = !!st.draft;
   const scroll = useRef<ScrollViewInstance>(null);
 
   useEffect(() => {
     scroll.current?.scrollTo({ y: 0, animated: false });
-  }, [route.name, route.params.id]);
+  }, [route.name, route.params.id, editingProfile]);
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: C.bg }}>
       <DemoBar />
-      <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: s(36) }} keyboardShouldPersistTaps="handled">
-        <View style={{ width: '100%', maxWidth: 1240, alignSelf: 'center', paddingHorizontal: s(wide ? 32 : 18) }}>
+      <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: s(24) }} keyboardShouldPersistTaps="handled">
+        <View style={{ width: '100%', maxWidth: 1320, alignSelf: 'center', paddingHorizontal: s(wide ? 24 : 14) }}>
           <Screen settingsScreen={settingsScreen} liveScreens={liveScreens} />
         </View>
       </ScrollView>
@@ -92,15 +93,20 @@ function Screen({ settingsScreen: Settings, liveScreens }: { settingsScreen: Com
 function DemoBar() {
   const { reset, go, confirm } = useStore();
   const { s, wide, design } = useLayout();
+  const [showDesigns, setShowDesigns] = useState(false);
   return (
     <View style={{ backgroundColor: C.stage, borderBottomWidth: 1, borderColor: C.line }}>
-      <View style={{ width: '100%', maxWidth: 1240, alignSelf: 'center', paddingHorizontal: s(wide ? 32 : 18), paddingTop: s(12), paddingBottom: s(wide ? 12 : 10), gap: s(10) }}>
-        <Row gap={12}>
+      <View style={{ width: '100%', maxWidth: 1320, alignSelf: 'center', paddingHorizontal: s(wide ? 24 : 14), paddingVertical: s(8), gap: s(8) }}>
+        <Row gap={8}>
           <Pressable accessibilityRole="button" accessibilityLabel="Shumitomo ホーム" onPress={() => go('profile')}>
             <Txt size={design.id === 'play' ? 19 : 18} weight={design.id === 'play' ? 'display' : 'bold'} style={{ letterSpacing: design.id === 'play' ? -1 : -0.4 }}>shumitomo</Txt>
           </Pressable>
           {wide ? <View style={{ flex: 1, alignItems: 'center' }}><DesignSwitcher /></View> : <View style={{ flex: 1 }} />}
           {wide ? <Badge label="画面デモ" tone="rest" /> : null}
+          {!wide ? <Pressable onPress={() => setShowDesigns(value => !value)} accessibilityRole="button" accessibilityLabel="デザインを変更" accessibilityState={{ expanded: showDesigns }} hitSlop={4}
+            style={({ pressed }) => ({ width: s(36), height: s(36), alignItems: 'center', justifyContent: 'center', borderRadius: s(8), backgroundColor: pressed || showDesigns ? C.accentSoft : 'transparent' })}>
+            <Feather name={design.dark ? 'moon' : 'sun'} size={s(18)} color={C.accent} />
+          </Pressable> : null}
           <Pressable onPress={async () => { if (await confirm('この端末に保存したプロフィールも最初の状態に戻しますか？')) { if (await reset()) resetSettings(); } }} accessibilityRole="button" accessibilityLabel="最初から" hitSlop={4}
             style={({ pressed }) => ({ width: s(32), height: s(32), alignItems: 'center', justifyContent: 'center', borderRadius: s(10), backgroundColor: pressed ? C.accentSoft : 'transparent' })}>
             <Feather name="rotate-ccw" size={s(17)} color={C.muted} />
@@ -110,7 +116,7 @@ function DemoBar() {
             <Feather name="settings" size={s(17)} color={C.ink} />
           </Pressable>
         </Row>
-        {!wide ? <Row gap={8}><DesignSwitcher /><Badge label="デモ" tone="rest" /></Row> : null}
+        {!wide && showDesigns ? <Row gap={8}><DesignSwitcher onSelect={() => setShowDesigns(false)} /><Badge label="デモ" tone="rest" /></Row> : null}
       </View>
     </View>
   );
@@ -130,14 +136,14 @@ function TabBar({ current }: { current: Tab }) {
   const insets = useSafeAreaInsets();
   const pop = design.id === 'play';
   return (
-    <View style={{ paddingHorizontal: pop ? 0 : s(14), paddingTop: pop ? 0 : s(8), paddingBottom: Math.max(insets.bottom, pop ? 0 : s(wide ? 16 : 10)), backgroundColor: pop ? C.card : C.bg, borderTopWidth: pop ? 1.5 : 0, borderColor: C.ink }}>
-      <View style={[{ flexDirection: 'row', width: '100%', maxWidth: s(520), alignSelf: 'center', padding: s(5), borderRadius: pop ? 0 : s(22), backgroundColor: C.card, borderWidth: pop ? 0 : design.border, borderColor: C.line }, pop ? null : shadow]}>
+    <View style={{ paddingHorizontal: s(8), paddingBottom: Math.max(insets.bottom, s(4)), backgroundColor: C.card, borderTopWidth: 1, borderColor: C.line }}>
+      <View style={{ flexDirection: 'row', width: '100%', maxWidth: s(520), alignSelf: 'center', paddingTop: s(4), gap: s(4) }}>
         {TABS.map(({ tab, label, icon }) => {
           const on = tab === current;
           return <Pressable key={tab} onPress={() => go(tab === 'recruit' ? 'recruit' : tab)} accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{ selected: on }}
-            style={({ pressed }) => ({ flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: s(55), paddingVertical: s(7), gap: s(4), borderRadius: pop ? 0 : s(16), backgroundColor: pressed ? C.surface : on && !pop ? C.accentSoft : 'transparent' })}>
+            style={({ pressed }) => ({ flex: 1, flexDirection: wide ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', minHeight: s(wide ? 44 : 54), paddingVertical: s(5), gap: s(wide ? 8 : 2), borderRadius: s(10), backgroundColor: pressed ? C.surface : on ? C.accentSoft : 'transparent' })}>
             <Feather name={icon} size={s(20)} color={on ? C.accent : C.muted} />
-            <Txt size={10} weight={on ? 'bold' : 'regular'} color={on ? C.ink : C.muted}>{label}</Txt>
+            <Txt size={12} weight={on ? 'bold' : 'regular'} color={on ? C.ink : C.muted}>{label}</Txt>
             {pop && on ? <View style={{ height: s(2), width: s(22), backgroundColor: C.accent, position: 'absolute', top: 0 }} /> : null}
           </Pressable>;
         })}
