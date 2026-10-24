@@ -44,7 +44,16 @@ export type Request = {
 export type ParResult = 'waiting' | 'matched' | 'playing' | 'ended' | 'canceled';
 export type Notice =
   | { kind: 'recruit'; from: PersonId; game: GameTag; text: string; done: boolean }
-  | { kind: 'heat'; from: PersonId; game: GameTag; text: string; done: boolean };
+  | { kind: 'heat'; from: PersonId; game: GameTag; text: string; done: boolean }
+  // 募集の参加履歴。par：相手の募集に自分が参加した、rec：自分の募集に相手が参加した
+  | { kind: 'joined'; id: string; side: 'par' | 'rec'; from: PersonId; game: GameTag; when: string; result: ParResult };
+
+// 参加履歴を知らせの先頭に残す。同じ募集なら、結果だけ書き換える
+export function logJoin(d: State, e: Omit<Extract<Notice, { kind: 'joined' }>, 'kind'>) {
+  const old = d.conn.notices.find((n) => n.kind === 'joined' && n.id === e.id);
+  if (old && old.kind === 'joined') Object.assign(old, e);
+  else d.conn.notices.unshift({ kind: 'joined', ...e });
+}
 
 export type State = {
   role: 'rec' | 'par';
@@ -127,6 +136,7 @@ function freshState(route: Route = { name: 'profile' }): State {
       notices: [
         { kind: 'recruit', from: 'mei', game: 'splatoon3', text: '今夜 21:00〜 あと2人', done: false },
         { kind: 'heat', from: 'ken', game: 'masterduel', text: '熱量が「ゆるめ」→「普通」に変わりました', done: false },
+        { kind: 'joined', id: 'par:E1', side: 'par', from: 'ken', game: 'apex', when: '昨日 21:00〜', result: 'ended' },
       ],
       friends: ['mei', 'ken'],
       sentTo: [],

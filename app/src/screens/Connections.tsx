@@ -8,6 +8,12 @@ import {
   AppBar, Art, Avatar, Block, Card, Chip, Cols, Divider, Empty, HeatTag, Note, PillButton, Reasons, Row, Stack,
   TextButton, Trust, Txt,
 } from '../ui';
+import type { ParResult } from '../store';
+
+// 参加履歴の結果の表示
+const JOIN_RESULT: Record<ParResult, string> = {
+  waiting: '承認待ち', matched: '成立', playing: '遊んでいる', ended: '遊び終わり', canceled: '開催中止',
+};
 
 export function ConnectionsScreen() {
   const { s: st, update, go, toast, confirm } = useStore();
@@ -51,6 +57,23 @@ export function ConnectionsScreen() {
       <Card>
         {c.notices.length ? c.notices.map((n, i) => {
           const p = PEOPLE[n.from];
+          if (n.kind === 'joined') {
+            // 募集の参加履歴。押すと相手のプロフィールへ
+            return (
+              <View key={n.id}>
+                {i > 0 ? <Divider /> : null}
+                <Row gap={10} style={{ padding: s(12) }}>
+                  <Art tag={n.game} size={40} />
+                  <Stack gap={2} style={{ flex: 1 }}>
+                    <Txt size={14} weight="bold">{n.side === 'par' ? `${p.nickname}の募集に参加しました` : `${p.nickname}があなたの募集に参加しました`}</Txt>
+                    <Note>{`${GAMES[n.game].name} ・ ${n.when}`}</Note>
+                    <TextButton label="プロフィールを見る" onPress={() => go('person', { id: n.from })} />
+                  </Stack>
+                  <Chip label={JOIN_RESULT[n.result]} />
+                </Row>
+              </View>
+            );
+          }
           const recruit = n.kind === 'recruit';
           return (
             <View key={i}>
@@ -69,11 +92,11 @@ export function ConnectionsScreen() {
                 <PillButton
                   label={n.done ? (recruit ? '参加リクエスト済み' : '誘いました') : (recruit ? '参加希望を送る' : 'このゲームで誘う')}
                   disabled={n.done}
-                  onPress={() => { update((d) => { d.conn.notices[i].done = true; }); toast(recruit ? '参加希望を送りました' : '誘いました'); }} />
+                  onPress={() => { update((d) => { const x = d.conn.notices[i]; if (x.kind !== 'joined') x.done = true; }); toast(recruit ? '参加希望を送りました' : '誘いました'); }} />
               </Row>
             </View>
           );
-        }) : <Empty title="知らせはまだありません" text="フレンドが募集を出すと、ここに届きます。" />}
+        }) : <Empty title="知らせはまだありません" text="フレンドが募集を出したときや、募集に参加したときに、ここに届きます。" />}
       </Card>
     </Block>
   );

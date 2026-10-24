@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import { GAMES, PEOPLE, PLATFORMS, VC, isGameTag, isTime, type PersonId } from '../data';
 import { UNDECIDED, formatWhen, todayISO } from '../dates';
 import { DateTimeField } from '../DateTimeField';
-import { fakeSave, inviteText, newRecruitForm, useStore, type InviteParts, type RecStatus, type Request, type State } from '../store';
+import { fakeSave, inviteText, logJoin, newRecruitForm, useStore, type InviteParts, type RecStatus, type Request, type State } from '../store';
 import { createPendingSave } from '../pending-save';
 import { C, useLayout } from '../theme';
 import {
@@ -269,7 +269,13 @@ export function RequestsScreen() {
     update((d) => { const q = d.rec.requests.find((x) => x.id === id); if (q) q.busy = true; });
     await fakeSave();
     // 成立はサーバーで確定してから表示する（requests-4）
-    update((d) => { const q = d.rec.requests.find((x) => x.id === id); if (q) { q.busy = false; q.status = 'matched'; } });
+    update((d) => {
+      const q = d.rec.requests.find((x) => x.id === id);
+      if (!q) return;
+      q.busy = false; q.status = 'matched';
+      // 自分の募集に参加した人も、フレンドの知らせの参加履歴に残す
+      logJoin(d, { id: `rec:${q.id}`, side: 'rec', from: q.person, game: d.rec.form.game, when: formatWhen(d.rec.form.when, d.rec.form.time), result: 'matched' });
+    });
     const q = r.requests.find((x) => x.id === id);
     if (q) toast(`${PEOPLE[q.person].nickname}さんと成立しました`);
   };

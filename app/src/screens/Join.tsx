@@ -2,7 +2,7 @@
 import { View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import { ENDED_LISTINGS, GAMES, LISTINGS, PEOPLE, checkGameId, type Listing } from '../data';
-import { fakeSave, findListing, newRecruitForm, useStore } from '../store';
+import { fakeSave, findListing, logJoin, newRecruitForm, useStore } from '../store';
 import { C, useLayout } from '../theme';
 import {
   AppBar, Art, Avatar, Badge, Block, Card, Check, DemoButton, Divider, Empty, Field, Grid, HeatTag, MainButton,
@@ -67,7 +67,10 @@ function ListingCard({ l, pinned }: { l: Listing; pinned?: boolean }) {
     }
     await fakeSave();
     if (par.saveToProfile && !(await saveGameToProfile({ game: l.game, platform: l.platform, heat: l.heat, skill: l.skill }))) return;
-    update((d) => { d.par.sent = true; d.par.listing = l.id; d.par.openJoin = null; d.par.result = 'waiting'; });
+    update((d) => {
+      d.par.sent = true; d.par.listing = l.id; d.par.openJoin = null; d.par.result = 'waiting';
+      logJoin(d, { id: `par:${l.id}`, side: 'par', from: l.by, game: l.game, when: l.when, result: 'waiting' });
+    });
     toast('参加希望を送りました');
     go('matched');
   };
@@ -143,7 +146,11 @@ export function MatchedScreen() {
   const l = findListing(par.listing);
   const p = PEOPLE[l.by];
   const game = GAMES[l.game];
-  const setResult = (to: typeof par.result) => update((d) => { d.par.result = to; });
+  // 結果が変わるたびに、フレンドの知らせの参加履歴も書き換える
+  const setResult = (to: typeof par.result) => update((d) => {
+    d.par.result = to;
+    logJoin(d, { id: `par:${l.id}`, side: 'par', from: l.by, game: l.game, when: l.when, result: to });
+  });
 
   const head = (
     <Card pad>
