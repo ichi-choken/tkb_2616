@@ -17,7 +17,21 @@ const PLACEHOLDER: Record<AddKind, string> = { games: 'ゲームを選択', hobb
 // 大文字・小文字、ひらがな・カタカナの違いを無視して比べる
 const fold = (s: string) => s.toLowerCase().replace(/[ぁ-ゖ]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0x60)).replace(/\s/g, '');
 
-type Item = { key: string; label: string };
+// added：もうプロフィールに入っている。custom：候補に無く、自分で新規追加したもの
+type Item = { key: string; label: string; added?: boolean; custom?: boolean };
+
+// 自分で新規追加したものの色（候補から選んだものと見分けるため）
+const NEW_FG = C.accent;
+const NEW_BG = '#eceefd';
+
+function Tag({ label, color, bg }: { label: string; color: string; bg: string }) {
+  const { s } = useLayout();
+  return (
+    <View style={{ backgroundColor: bg, borderRadius: 999, paddingHorizontal: s(8), paddingVertical: s(1) }}>
+      <Txt size={11} weight="bold" color={color}>{label}</Txt>
+    </View>
+  );
+}
 
 /* ---------- 予測変換つきの入力欄 ---------- */
 
@@ -36,8 +50,10 @@ export function Combobox({ items, placeholder, onPick, onCreate }: {
   const matches = useMemo(() => {
     const q = fold(text);
     const list = q ? items.filter((it) => fold(it.label).includes(q)) : items;
-    // 打った文字で始まるものを先に
-    return [...list].sort((a, b) => Number(!fold(a.label).startsWith(q)) - Number(!fold(b.label).startsWith(q)) || a.label.localeCompare(b.label, 'ja'));
+    // まだ足していないもの、打った文字で始まるものを先に
+    return [...list].sort((a, b) => Number(!!a.added) - Number(!!b.added)
+      || Number(!fold(a.label).startsWith(q)) - Number(!fold(b.label).startsWith(q))
+      || a.label.localeCompare(b.label, 'ja'));
   }, [items, text]);
 
   const create = () => {
@@ -88,17 +104,22 @@ export function Combobox({ items, placeholder, onPick, onCreate }: {
           {/* 低い画面では、候補の一覧も縮めて、欄と見出しが画面に残るようにする */}
           <ScrollView style={{ maxHeight: Math.min(s(240), Math.round(fitHeight * 0.4)) }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
             {matches.length ? matches.map((it, i) => (
-              <Pressable key={it.key} onPress={() => { onPick(it); setText(''); input.current?.focus(); }} accessibilityRole="button"
+              // 追加済みのものも一覧に残し、右端に「追加済み」と出す。押しても足さない
+              <Pressable key={it.key} disabled={it.added} onPress={() => { onPick(it); setText(''); input.current?.focus(); }}
+                accessibilityRole="button" accessibilityState={{ disabled: !!it.added }}
                 style={({ hovered, pressed }: { hovered?: boolean; pressed: boolean }) => ({
+                  flexDirection: 'row', alignItems: 'center', gap: s(8),
                   paddingVertical: s(12), paddingHorizontal: s(14),
                   borderTopWidth: i ? 1 : 0, borderColor: C.line,
-                  backgroundColor: pressed || hovered ? C.bg : C.card,
+                  backgroundColor: it.added ? C.bg : pressed || hovered ? C.bg : C.card,
                 })}>
-                <Txt size={15}>{it.label}</Txt>
+                <Txt size={15} color={it.added ? C.muted : it.custom ? NEW_FG : C.ink} style={{ flex: 1 }}>{it.label}</Txt>
+                {it.custom ? <Tag label="新規追加" color={NEW_FG} bg={NEW_BG} /> : null}
+                {it.added ? <Tag label="追加済み" color={C.rest} bg={C.restBg} /> : null}
               </Pressable>
             )) : (
               <View style={{ padding: s(14) }}>
-                <Note>{text.trim() ? `候補にありません。右の「新規追加」で「${text.trim()}」を足せます` : '候補はすべて追加済みです'}</Note>
+                <Note>{text.trim() ? `候補にありません。右の「新規追加」で「${text.trim()}」を足せます` : '候補はありません'}</Note>
               </View>
             )}
           </ScrollView>
@@ -122,12 +143,17 @@ export function AddModal({ kind, onClose }: { kind: AddKind | null; onClose: () 
     return editProfile(fn);
   };
 
+  // 候補の一覧。追加済みのものと、自分で新規追加したものにも印を付ける
+  const suggest = kind === 'hobbies' ? HOBBY_SUGGEST : LIKE_SUGGEST;
+  const named = kind === 'hobbies' ? target.hobbies : target.likes;
   const items: Item[] =
     kind === 'games'
-      ? Object.keys(GAMES).filter((t) => !target.games.some((g) => g.tag === t)).map((t) => ({ key: t, label: GAMES[t].name }))
-      : (kind === 'hobbies' ? HOBBY_SUGGEST : LIKE_SUGGEST)
-        .filter((n) => !(kind === 'hobbies' ? target.hobbies : target.likes).some((x) => x.name === n))
-        .map((n) => ({ key: n, label: n }));
+      ? Object.keys(GAMES).map((t) => ({
+        key: t, label: GAMES[t].name, added: target.games.some((g) => g.tag === t), custom: t.startsWith('custom:'),
+      }))
+      : [...suggest, ...named.map((x) => x.name).filter((n) => !suggest.includes(n))].map((n) => ({
+        key: n, label: n, added: named.some((x) => x.name === n), custom: !suggest.includes(n),
+      }));
 
   const add = async (name: string, tag?: string) => {
     if (hasNgWord(name)) return toast('この言葉は入れられません');
@@ -144,8 +170,8 @@ export function AddModal({ kind, onClose }: { kind: AddKind | null; onClose: () 
     }
   };
 
-  const added = kind === 'games' ? target.games.map((g) => GAMES[g.tag]?.name ?? g.tag)
-    : (kind === 'hobbies' ? target.hobbies : target.likes).map((x) => x.name);
+  const added = items.filter((it) => it.added);
+  const hasCustom = added.some((it) => it.custom);
 
   return (
     // 画面の高さに合わせて縮み、見出しと閉じるボタンは常に見える（FitModal）
@@ -160,10 +186,16 @@ export function AddModal({ kind, onClose }: { kind: AddKind | null; onClose: () 
             />
             {added.length ? (
               <Stack gap={6}>
-                <Txt size={12} weight="bold" color={C.muted}>追加済み</Txt>
-                <Row gap={6} wrap>{added.map((n) => (
-                  <View key={n} style={{ borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: s(10), paddingVertical: s(2) }}>
-                    <Txt size={12}>{n}</Txt>
+                <Row gap={8} wrap>
+                  <Txt size={12} weight="bold" color={C.muted}>追加済み</Txt>
+                  {hasCustom ? <Row gap={4}><Tag label="色つき" color={NEW_FG} bg={NEW_BG} /><Note>＝新規追加したもの</Note></Row> : null}
+                </Row>
+                <Row gap={6} wrap>{added.map((it) => (
+                  <View key={it.key} style={{
+                    borderWidth: 1, borderColor: it.custom ? NEW_FG : C.line, backgroundColor: it.custom ? NEW_BG : C.card,
+                    borderRadius: 999, paddingHorizontal: s(10), paddingVertical: s(2),
+                  }}>
+                    <Txt size={12} weight={it.custom ? 'bold' : 'regular'} color={it.custom ? NEW_FG : C.ink}>{it.label}</Txt>
                   </View>
                 ))}</Row>
               </Stack>
