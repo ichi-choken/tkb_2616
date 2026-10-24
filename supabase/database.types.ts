@@ -71,14 +71,14 @@ isOneToOne: false
                   ]
                 },"games": {
                   Row: {
-                    "alternative_names": (string)[],"cover_image_id": string | null,"fetched_at": string,"first_release_date": string | null,"hide_cover": boolean,"id": number,"name": string,"platforms": (string)[],"popularity": number | null,"steam_app_id": number | null
+                    "alternative_names": (string)[],"cover_image_id": string | null,"fetched_at": string,"first_release_date": string | null,"hide_cover": boolean,"id": number,"modes": (string)[] | null,"name": string,"needs_participant_id_default": boolean | null,"platforms": (string)[],"popularity": number | null,"steam_app_id": number | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "alternative_names"?: (string)[],"cover_image_id"?: string | null,"fetched_at"?: string,"first_release_date"?: string | null,"hide_cover"?: boolean,"id": number,"name": string,"platforms"?: (string)[],"popularity"?: number | null,"steam_app_id"?: number | null
+                    "alternative_names"?: (string)[],"cover_image_id"?: string | null,"fetched_at"?: string,"first_release_date"?: string | null,"hide_cover"?: boolean,"id": number,"modes"?: (string)[] | null,"name": string,"needs_participant_id_default"?: boolean | null,"platforms"?: (string)[],"popularity"?: number | null,"steam_app_id"?: number | null
                   }
                   Update: {
-                    "alternative_names"?: (string)[],"cover_image_id"?: string | null,"fetched_at"?: string,"first_release_date"?: string | null,"hide_cover"?: boolean,"id"?: number,"name"?: string,"platforms"?: (string)[],"popularity"?: number | null,"steam_app_id"?: number | null
+                    "alternative_names"?: (string)[],"cover_image_id"?: string | null,"fetched_at"?: string,"first_release_date"?: string | null,"hide_cover"?: boolean,"id"?: number,"modes"?: (string)[] | null,"name"?: string,"needs_participant_id_default"?: boolean | null,"platforms"?: (string)[],"popularity"?: number | null,"steam_app_id"?: number | null
                   }
                   Relationships: [
                     
@@ -303,14 +303,14 @@ isOneToOne: true
                   ]
                 },"recruitments": {
                   Row: {
-                    "cancelled_at": string | null,"capacity": number | null,"closed_manually_at": string | null,"created_at": string,"enthusiasm": number | null,"game_id": number,"id": string,"mode": string | null,"needs_participant_id": boolean,"owner_id": string,"platform": string | null,"platform_other": string | null,"play_ended_at": string | null,"play_started_at": string | null,"skill": number | null,"starts_at": string | null,"updated_at": string,"usual_time_end": string | null,"usual_time_start": string | null,"voice_chat": string | null,"matched_count": number | null,"status": Database["public"]['Enums']["recruitment_status"] | null
+                    "cancelled_at": string | null,"capacity": number | null,"closed_manually_at": string | null,"created_at": string,"enthusiasm": number | null,"extra_reception_at": string | null,"game_id": number,"id": string,"mode": string | null,"needs_participant_id": boolean,"owner_id": string,"platform": string | null,"platform_other": string | null,"play_ended_at": string | null,"play_started_at": string | null,"skill": number | null,"starts_at": string | null,"updated_at": string,"usual_time_end": string | null,"usual_time_start": string | null,"voice_chat": string | null,"matched_count": number | null,"status": Database["public"]['Enums']["recruitment_status"] | null
                   }
                   ComputedFields: "matched_count" | "status"
                   Insert: {
-                    "cancelled_at"?: string | null,"capacity"?: number | null,"closed_manually_at"?: string | null,"created_at"?: string,"enthusiasm"?: number | null,"game_id": number,"id"?: string,"mode"?: string | null,"needs_participant_id": boolean,"owner_id": string,"platform"?: string | null,"platform_other"?: string | null,"play_ended_at"?: string | null,"play_started_at"?: string | null,"skill"?: number | null,"starts_at"?: string | null,"updated_at"?: string,"usual_time_end"?: string | null,"usual_time_start"?: string | null,"voice_chat"?: string | null
+                    "cancelled_at"?: string | null,"capacity"?: number | null,"closed_manually_at"?: string | null,"created_at"?: string,"enthusiasm"?: number | null,"extra_reception_at"?: string | null,"game_id": number,"id"?: string,"mode"?: string | null,"needs_participant_id": boolean,"owner_id": string,"platform"?: string | null,"platform_other"?: string | null,"play_ended_at"?: string | null,"play_started_at"?: string | null,"skill"?: number | null,"starts_at"?: string | null,"updated_at"?: string,"usual_time_end"?: string | null,"usual_time_start"?: string | null,"voice_chat"?: string | null
                   }
                   Update: {
-                    "cancelled_at"?: string | null,"capacity"?: number | null,"closed_manually_at"?: string | null,"created_at"?: string,"enthusiasm"?: number | null,"game_id"?: number,"id"?: string,"mode"?: string | null,"needs_participant_id"?: boolean,"owner_id"?: string,"platform"?: string | null,"platform_other"?: string | null,"play_ended_at"?: string | null,"play_started_at"?: string | null,"skill"?: number | null,"starts_at"?: string | null,"updated_at"?: string,"usual_time_end"?: string | null,"usual_time_start"?: string | null,"voice_chat"?: string | null
+                    "cancelled_at"?: string | null,"capacity"?: number | null,"closed_manually_at"?: string | null,"created_at"?: string,"enthusiasm"?: number | null,"extra_reception_at"?: string | null,"game_id"?: number,"id"?: string,"mode"?: string | null,"needs_participant_id"?: boolean,"owner_id"?: string,"platform"?: string | null,"platform_other"?: string | null,"play_ended_at"?: string | null,"play_started_at"?: string | null,"skill"?: number | null,"starts_at"?: string | null,"updated_at"?: string,"usual_time_end"?: string | null,"usual_time_start"?: string | null,"voice_chat"?: string | null
                   }
                   Relationships: [
                     {
@@ -373,6 +373,7 @@ isOneToOne: false
 "closed_manually_at": string | null,
 "created_at": string,
 "enthusiasm": number | null,
+"extra_reception_at": string | null,
 "game_id": number,
 "id": string,
 "mode": string | null,
@@ -395,6 +396,9 @@ isOneToOne: false
         isOneToOne: false
         isSetofReturn: true
       } },
+"reopen_with_more_capacity":
+{ Args: { "p_new_capacity": number,"p_op_id": string,"p_recruitment_id": string }; Returns: Json
+                           },
 "state":
 { Args: { "a": Omit<Database["public"]['Tables']["applications"]['Row'], Database["public"]['Tables']["applications"]['ComputedFields']> }; Returns: Database["public"]['Enums']["application_state"]
                            },
@@ -403,6 +407,9 @@ isOneToOne: false
                            },
 "update_meeting":
 { Args: { "p_invite_url"?: string,"p_op_id": string,"p_recruitment_id": string,"p_room_code"?: string }; Returns: Json
+                           },
+"update_profile":
+{ Args: { "p_nickname"?: string,"p_op_id": string,"p_region"?: Database["public"]['Enums']["region"],"p_usual_time_end"?: string,"p_usual_time_start"?: string }; Returns: Json
                            }
           }
           Enums: {
