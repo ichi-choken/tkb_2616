@@ -10,13 +10,14 @@ import {
 export type RouteName =
   | 'profile' | 'person' | 'search-id'
   | 'create' | 'requests' | 'list' | 'matched'
-  | 'connections';
+  | 'connections' | 'settings';
 export type Route = { name: RouteName | 'recruit'; params?: Record<string, string> };
 export type Tab = 'profile' | 'recruit' | 'connections';
 export const ROUTE_TAB: Record<RouteName, Tab> = {
   profile: 'profile', person: 'profile', 'search-id': 'profile',
   create: 'recruit', requests: 'recruit', list: 'recruit', matched: 'recruit',
   connections: 'connections',
+  settings: 'profile',
 };
 
 export type RecruitForm = {
@@ -141,7 +142,7 @@ function routeToHash(route: Route) {
 function hashToRoute(hash: string): Route {
   const [path, query = ''] = hash.replace(/^#\/?/, '').split('?');
   const params = Object.fromEntries(new URLSearchParams(query));
-  const names: Route['name'][] = ['profile', 'person', 'search-id', 'create', 'requests', 'list', 'matched', 'connections', 'recruit'];
+  const names: Route['name'][] = ['profile', 'person', 'search-id', 'create', 'requests', 'list', 'matched', 'connections', 'settings', 'recruit'];
   return names.includes(path as Route['name']) ? { name: path as Route['name'], params } : { name: 'profile' };
 }
 const isWeb = Platform.OS === 'web' && typeof window !== 'undefined';

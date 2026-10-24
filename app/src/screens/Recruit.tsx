@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 import { View } from 'react-native';
 import { GAMES, PEOPLE, PLATFORMS, SKILLS, VC, WHEN, isTime, type PersonId } from '../data';
-import { fakeSave, inviteText, newRecruitForm, useStore, type InviteParts, type RecStatus, type Request } from '../store';
+import { fakeSave, inviteText, newRecruitForm, useStore, type InviteParts, type RecStatus, type Request, type State } from '../store';
 import { C, useLayout } from '../theme';
 import {
   AppBar, Art, Avatar, Badge, Block, Card, Check, Cols, Divider, Empty, Field, HeatSlider, MainButton,
@@ -23,8 +23,18 @@ function FormRow({ label, children }: { label: string; children: React.ReactNode
 
 const PARTS: [keyof InviteParts, string][] = [['when', 'いつ'], ['need', '人数'], ['platform', '機種'], ['vc', 'VC'], ['skill', '実力'], ['heat', '熱量']];
 
+// 新しい募集の下書きにする。前の募集の内容・参加希望・入る場所は持ち越さない
+function startDraft(d: State, game: State['rec']['form']['game']) {
+  d.rec.stage = 'draft';
+  d.rec.form = newRecruitForm(game, d.me.games);
+  d.rec.status = 'open';
+  d.rec.requests = [];
+  d.rec.keep = {};
+  d.rec.room = ''; d.rec.inviteUrl = ''; d.rec.roomDraft = ''; d.rec.inviteDraft = '';
+}
+
 export function CreateScreen({ game }: { game?: string }) {
-  const { s: st, update, go, toast, publish } = useStore();
+  const { s: st, update, go, toast, publish, saveGameToProfile, confirm } = useStore();
   const { s } = useLayout();
   const r = st.rec;
   const f = r.form;
@@ -45,6 +55,8 @@ export function CreateScreen({ game }: { game?: string }) {
     if (f.when !== '未定' && !isTime(f.time)) return toast('時刻は 21:00 のように入れてください');
     update((d) => { d.rec.busy = true; });
     await fakeSave();
+    // 編集でも「プロフィールにも保存」にチェックしていれば、プロフィールに反映する
+    if (f.saveToProfile) saveGameToProfile(f);
     update((d) => {
       d.rec.room = d.rec.roomDraft.trim();
       d.rec.inviteUrl = d.rec.inviteDraft.trim();
@@ -52,9 +64,32 @@ export function CreateScreen({ game }: { game?: string }) {
       d.rec.saved = null;
       d.rec.busy = false;
     });
-    toast('募集の変更を保存しました');
+    toast(f.saveToProfile ? '募集の変更を保存し、プロフィールにも保存しました' : '募集の変更を保存しました');
     go('requests');
   };
+
+  // 募集を出したあとに、プロフィールのゲームなどから来たとき。前の募集の内容のまま公開し直さないよう、どうするか選ぶ
+  if (r.stage === 'posted' && !editing) {
+    const next = (game && game in GAMES ? game : f.game) as typeof f.game;
+    return (
+      <Stack>
+        <AppBar title="募集を出す" />
+        <Card pad>
+          <Stack gap={10}>
+            <Txt size={16} weight="bold">出している募集があります</Txt>
+            <Note>{GAMES[f.game].name}の募集を出しています。新しい募集は、前の募集の内容や参加希望を引き継がずに作ります。</Note>
+            <Row gap={8} wrap>
+              <SubButton label="出している募集を見る" onPress={() => go('requests')} />
+              <PillButton label={`${GAMES[next].name}で新しい募集を作る`} onPress={async () => {
+                if (!(await confirm(`${GAMES[f.game].name}の募集を閉じて、新しい募集を作りますか？（デモでは、出せる募集は1つです）`))) return;
+                update((d) => startDraft(d, next));
+              }} />
+            </Row>
+          </Stack>
+        </Card>
+      </Stack>
+    );
+  }
 
   const form = (
     <Card>

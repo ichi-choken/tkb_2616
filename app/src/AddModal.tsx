@@ -2,8 +2,9 @@
 // 欄に打つと候補が絞り込まれて下に出る（家計簿の「店舗を選択」と同じ形）。
 // 候補を押すとそれを足し、右の「新規追加」を押すと、候補が出ていても打った名前をそのまま足す。
 import { useMemo, useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, TextInput, View, type TextInputInstance } from 'react-native';
+import { Pressable, ScrollView, TextInput, View, type TextInputInstance } from 'react-native';
 import { GAMES, HOBBY_SUGGEST, LIKE_SUGGEST, addCustomGame, hasNgWord } from './data';
+import { FitModal, useFitHeight } from './FitModal';
 import { useStore } from './store';
 import { C, F, shadow, useLayout } from './theme';
 import { Note, Row, Stack, SubButton, Txt } from './ui';
@@ -27,6 +28,7 @@ export function Combobox({ items, placeholder, onPick, onCreate }: {
   onCreate: (name: string) => void;
 }) {
   const { s } = useLayout();
+  const fitHeight = useFitHeight();
   const [text, setText] = useState('');
   const [open, setOpen] = useState(true);
   const input = useRef<TextInputInstance>(null);
@@ -83,7 +85,8 @@ export function Combobox({ items, placeholder, onPick, onCreate }: {
 
       {open ? (
         <View style={[{ marginTop: s(4), borderWidth: 1, borderColor: C.line, borderRadius: s(8), backgroundColor: C.card, overflow: 'hidden' }, shadow]}>
-          <ScrollView style={{ maxHeight: s(240) }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+          {/* 低い画面では、候補の一覧も縮めて、欄と見出しが画面に残るようにする */}
+          <ScrollView style={{ maxHeight: Math.min(s(240), Math.round(fitHeight * 0.4)) }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
             {matches.length ? matches.map((it, i) => (
               <Pressable key={it.key} onPress={() => { onPick(it); setText(''); input.current?.focus(); }} accessibilityRole="button"
                 style={({ hovered, pressed }: { hovered?: boolean; pressed: boolean }) => ({
@@ -109,7 +112,7 @@ export function Combobox({ items, placeholder, onPick, onCreate }: {
 
 export function AddModal({ kind, onClose }: { kind: AddKind | null; onClose: () => void }) {
   const { s: st, update, toast } = useStore();
-  const { s, wide } = useLayout();
+  const { s } = useLayout();
   if (!kind) return null;
 
   // 自分のプロフィールの編集中なら下書きに、そうでなければプロフィールにそのまま足す
@@ -142,17 +145,9 @@ export function AddModal({ kind, onClose }: { kind: AddKind | null; onClose: () 
     : (kind === 'hobbies' ? target.hobbies : target.likes).map((x) => x.name);
 
   return (
-    <Modal transparent animationType="fade" visible onRequestClose={onClose}>
-      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(10,14,28,0.45)', justifyContent: wide ? 'center' : 'flex-end', alignItems: 'center' }}>
-        <Pressable onPress={() => {}} style={[{
-          width: '100%', maxWidth: s(560), backgroundColor: C.card, padding: s(18),
-          borderRadius: s(16), borderBottomLeftRadius: wide ? s(16) : 0, borderBottomRightRadius: wide ? s(16) : 0,
-        }, shadow]}>
+    // 画面の高さに合わせて縮み、見出しと閉じるボタンは常に見える（FitModal）
+    <FitModal title={TITLE[kind]} onClose={onClose} footer={<SubButton label="閉じる" onPress={onClose} style={{ alignSelf: 'flex-end' }} />}>
           <Stack gap={12}>
-            <Row>
-              <Txt size={18} weight="display" style={{ flex: 1 }}>{TITLE[kind]}</Txt>
-              <Pressable onPress={onClose} accessibilityLabel="閉じる" hitSlop={10}><Txt size={22} color={C.muted}>×</Txt></Pressable>
-            </Row>
             <Note>候補から選ぶか、名前を打って「新規追加」を押してください。</Note>
             <Combobox
               items={items}
@@ -171,10 +166,7 @@ export function AddModal({ kind, onClose }: { kind: AddKind | null; onClose: () 
               </Stack>
             ) : null}
             {kind === 'games' ? <Note>機種は「編集」から変えられます。熱量と実力は、プロフィールのスライダーで変えられます。</Note> : null}
-            <SubButton label="閉じる" onPress={onClose} style={{ alignSelf: 'flex-end' }} />
           </Stack>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    </FitModal>
   );
 }

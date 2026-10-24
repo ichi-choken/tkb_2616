@@ -16,6 +16,7 @@ import { PersonScreen, ProfileScreen, SearchIdScreen } from './src/screens/Profi
 import { CreateScreen, RequestsScreen } from './src/screens/Recruit';
 import { ListScreen, MatchedScreen } from './src/screens/Join';
 import { ConnectionsScreen } from './src/screens/Connections';
+import { SettingsScreen, resetSettings } from './src/screens/Settings';
 
 export default function App() {
   const [loaded] = useFonts({
@@ -71,13 +72,14 @@ function Screen() {
     case 'list': return <ListScreen />;
     case 'matched': return <MatchedScreen />;
     case 'connections': return <ConnectionsScreen />;
+    case 'settings': return <SettingsScreen />;
   }
 }
 
 /* ---------- デモ用の帯 ---------- */
 
 function DemoBar() {
-  const { reset } = useStore();
+  const { reset, go } = useStore();
   const { s, wide } = useLayout();
   return (
     <Row style={{ paddingVertical: s(8), paddingHorizontal: s(wide ? 28 : 12), backgroundColor: C.stage, borderBottomWidth: 1, borderColor: '#cfd5e3' }}>
@@ -85,7 +87,10 @@ function DemoBar() {
         <Txt size={12} weight="bold">デモ</Txt>
       </View>
       <View style={{ flex: 1 }} />
-      <Pressable onPress={reset} accessibilityRole="button"><Txt size={12} color={C.muted} style={{ textDecorationLine: 'underline' }}>最初から</Txt></Pressable>
+      <Pressable onPress={() => { resetSettings(); reset(); }} accessibilityRole="button"><Txt size={12} color={C.muted} style={{ textDecorationLine: 'underline' }}>最初から</Txt></Pressable>
+      <Pressable onPress={() => go('settings')} accessibilityRole="button" accessibilityLabel="設定" hitSlop={8} style={{ marginLeft: s(12) }}>
+        <Ionicons name="settings-outline" size={s(18)} color={C.muted} />
+      </Pressable>
     </Row>
   );
 }

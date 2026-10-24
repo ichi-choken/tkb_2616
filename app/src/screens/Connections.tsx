@@ -67,7 +67,7 @@ export function ConnectionsScreen() {
                 </Stack>
                 {/* 相手の募集の知らせから参加希望を送れる（app-19）、熱量の知らせからそのゲームで誘える（app-21） */}
                 <PillButton
-                  label={n.done ? (recruit ? '送信済み' : '誘いました') : (recruit ? '参加希望を送る' : 'このゲームで誘う')}
+                  label={n.done ? (recruit ? '参加リクエスト済み' : '誘いました') : (recruit ? '参加希望を送る' : 'このゲームで誘う')}
                   disabled={n.done}
                   onPress={() => { update((d) => { d.conn.notices[i].done = true; }); toast(recruit ? '参加希望を送りました' : '誘いました'); }} />
               </Row>

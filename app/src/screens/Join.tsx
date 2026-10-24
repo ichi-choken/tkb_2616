@@ -87,7 +87,7 @@ function ListingCard({ l, pinned }: { l: Listing; pinned?: boolean }) {
         <Reasons items={l.reasons} />
         <Row style={{ justifyContent: 'space-between' }}>
           <Trust value={p.trust} />
-          {isOpen ? null : <PillButton label={par.sent ? '送信済み' : '参加したい'} disabled={par.sent}
+          {isOpen ? null : <PillButton label={par.sent ? '参加リクエスト済み' : '参加したい'} disabled={par.sent}
             onPress={() => update((d) => { d.par.openJoin = l.id; d.par.idTouched = false; })} />}
         </Row>
         {isOpen ? (
