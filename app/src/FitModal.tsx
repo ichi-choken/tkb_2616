@@ -63,7 +63,7 @@ export function FitModal({ title, onClose, children, footer }: {
       <View style={{ position: 'absolute', left: 0, right: 0, top: offsetTop, height: height - keyboard }}>
         <Pressable onPress={onClose} accessibilityLabel="閉じる"
           style={{
-            flex: 1, backgroundColor: 'rgba(10,14,28,0.45)', alignItems: 'center',
+            flex: 1, backgroundColor: C.overlay, alignItems: 'center',
             justifyContent: wide ? 'center' : 'flex-end',
             paddingTop: insets.top + (wide ? s(24) : s(12)), paddingBottom: wide ? s(24) : 0,
           }}>

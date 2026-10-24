@@ -97,9 +97,9 @@ export function SettingsScreen() {
       <Card pad>
         <Stack gap={6}>
           <Txt size={13} weight="bold">このアプリについて</Txt>
-          <Note>Steamのデータを利用しています。</Note>
+          <Note>パッケージ画像はSteam・任天堂の公式ページからの見本です。</Note>
           <Note>利用規約とプライバシーポリシーは、公開前に用意します。出会い目的の利用と、連絡先の交換は禁止です。</Note>
-          <TextButton label="IGDB.com（ゲームの名前と画像の出どころ）" onPress={() => open('https://www.igdb.com/')} />
+          <TextButton label="IGDB.com（ゲーム検索の提供元）" onPress={() => open('https://www.igdb.com/')} />
         </Stack>
       </Card>
     </>

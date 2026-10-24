@@ -61,9 +61,14 @@ export function CreateScreen({ game }: { game?: string }) {
       await pendingSave.run(async () => {
         update((d) => { d.rec.busy = true; });
         await fakeSave();
-      }, () => {
-        // 画面を離れた後の待機結果からは、プロフィールも募集も更新しない。
-        if (f.saveToProfile) saveGameToProfile(f);
+      }, async (isCurrent) => {
+        // 待機中に画面を離れた場合、端末への保存も開始しない。
+        if (f.saveToProfile && !(await saveGameToProfile(f))) {
+          if (isCurrent()) update(d => { d.rec.busy = false; });
+          return;
+        }
+        // 開始済みの端末書き込みは完了させるが、離れた画面へは戻さない。
+        if (!isCurrent()) return;
         update((d) => {
           d.rec.room = d.rec.roomDraft.trim();
           d.rec.inviteUrl = d.rec.inviteDraft.trim();

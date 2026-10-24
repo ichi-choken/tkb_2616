@@ -1,10 +1,11 @@
 // 画面をまたいで使う部品
 import { type ReactNode } from 'react';
-import { Pressable, Text, TextInput, View, type StyleProp, type TextInputProps, type TextStyle, type ViewStyle } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Image, Pressable, Text, TextInput, View, type StyleProp, type TextInputProps, type TextStyle, type ViewStyle } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import Feather from '@expo/vector-icons/Feather';
 import { GAMES, HEAT, SKILLS, type GameTag, type Person, type Profile } from './data';
 import { C, F, shadow, useLayout } from './theme';
+import { DEMO_COVERS } from './demo-covers';
 
 /* ---------- 文字 ---------- */
 
@@ -20,7 +21,7 @@ export function Txt({ children, size = 15, weight = 'regular', color = C.ink, st
   const { s } = useLayout();
   const family = weight === 'display' ? F.display : F[weight];
   return (
-    <Text numberOfLines={numberOfLines} style={[{ fontFamily: family, fontSize: s(size), lineHeight: s(size * 1.55), color }, style]}>
+    <Text numberOfLines={numberOfLines} style={[{ fontFamily: family, fontSize: s(size), lineHeight: s(size * 1.65), letterSpacing: weight === 'display' ? -0.4 : 0, color }, style]}>
       {children}
     </Text>
   );
@@ -32,7 +33,7 @@ export function Row({ children, gap = 8, wrap, style }: { children: ReactNode; g
   const { s } = useLayout();
   return <View style={[{ flexDirection: 'row', alignItems: 'center', gap: s(gap), flexWrap: wrap ? 'wrap' : 'nowrap' }, style]}>{children}</View>;
 }
-export function Stack({ children, gap = 14, style }: { children: ReactNode; gap?: number; style?: StyleProp<ViewStyle> }) {
+export function Stack({ children, gap = 20, style }: { children: ReactNode; gap?: number; style?: StyleProp<ViewStyle> }) {
   const { s } = useLayout();
   return <View style={[{ gap: s(gap) }, style]}>{children}</View>;
 }
@@ -64,33 +65,36 @@ export function Grid({ children }: { children: ReactNode[] }) {
 
 /* ---------- 見出しとカード ---------- */
 
-export function AppBar({ title, right, onBack, lead }: { title: string; right?: ReactNode; onBack?: () => void; lead?: ReactNode }) {
-  const { s, wide } = useLayout();
+export function AppBar({ title, right, onBack, lead, subtitle }: { title: string; right?: ReactNode; onBack?: () => void; lead?: ReactNode; subtitle?: string }) {
+  const { s, wide, design } = useLayout();
   return (
-    <Row style={{ paddingTop: s(wide ? 24 : 18), paddingBottom: s(10), borderBottomWidth: 1, borderColor: C.line }}>
-      {onBack ? (
-        <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="戻る" hitSlop={10}>
-          <Txt size={26} color={C.muted}>‹</Txt>
-        </Pressable>
-      ) : null}
-      {lead}
-      <Txt size={wide ? 22 : 20} weight="display" style={{ flex: 1 }}>{title}</Txt>
-      {right}
-    </Row>
+    <Stack gap={5} style={{ paddingTop: s(wide ? 32 : 24), paddingBottom: s(10) }}>
+      <Row gap={12} style={{ alignItems: 'center' }}>
+        {onBack ? <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="戻る" hitSlop={8}
+          style={({ pressed }) => ({ width: s(36), height: s(36), borderRadius: s(12), borderWidth: 1, borderColor: C.line, backgroundColor: pressed ? C.accentSoft : C.card, alignItems: 'center', justifyContent: 'center' })}>
+          <Feather name="arrow-left" size={s(17)} color={C.ink} />
+        </Pressable> : null}
+        {lead}
+        <Txt size={design.id === 'play' ? 21 : wide ? 27 : 25} weight="display" style={{ flex: 1 }}>{title}</Txt>
+        {right}
+      </Row>
+      {subtitle ? <Txt size={13} color={C.muted}>{subtitle}</Txt> : null}
+    </Stack>
   );
 }
 
 export function Card({ children, style, pad }: { children: ReactNode; style?: StyleProp<ViewStyle>; pad?: boolean }) {
-  const { s } = useLayout();
-  return <View style={[{ backgroundColor: C.card, borderRadius: s(12), padding: pad ? s(12) : 0 }, shadow, style]}>{children}</View>;
+  const { s, design } = useLayout();
+  return <View style={[{ backgroundColor: C.card, borderRadius: s(design.radius), borderWidth: design.border, borderColor: design.id === 'play' ? C.ink : C.line, padding: pad ? s(20) : 0 }, shadow, style]}>{children}</View>;
 }
 
 export function Block({ title, count, right, children }: { title: string; count?: number; right?: ReactNode; children: ReactNode }) {
+  const { s } = useLayout();
   return (
-    <Stack gap={6}>
-      <Row gap={6}>
-        <Txt size={13} weight="bold" color={C.muted}>{title}</Txt>
-        {count !== undefined ? <Txt size={13} weight="bold">{count}</Txt> : null}
+    <Stack gap={10}>
+      <Row gap={8} style={{ minHeight: s(28), paddingHorizontal: s(2) }}>
+        <Txt size={14} weight="bold" color={C.ink}>{title}</Txt>
+        {count !== undefined ? <Txt size={12} color={C.muted}>{count}</Txt> : null}
         <View style={{ flex: 1 }} />
         {right}
       </Row>
@@ -109,66 +113,43 @@ export function Note({ children, color = C.muted, style }: { children: ReactNode
 
 /* ---------- ボタン ---------- */
 
-type BtnProps = { label: string; onPress?: () => void; disabled?: boolean; style?: StyleProp<ViewStyle> };
+type BtnProps = { label: string; onPress?: () => void; disabled?: boolean; style?: StyleProp<ViewStyle>; icon?: keyof typeof Ionicons.glyphMap; accessibilityLabel?: string };
 
-export function MainButton({ label, onPress, disabled, style }: BtnProps) {
-  const { s } = useLayout();
-  return (
-    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" style={[{ opacity: disabled ? 0.45 : 1 }, style]}>
-      <LinearGradient colors={C.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={{ borderRadius: s(12), paddingVertical: s(12), paddingHorizontal: s(16), alignItems: 'center' }}>
-        <Txt size={16} weight="bold" color="#fff">{label}</Txt>
-      </LinearGradient>
-    </Pressable>
-  );
+export function MainButton({ label, onPress, disabled, style, icon, accessibilityLabel }: BtnProps) {
+  const { s, design } = useLayout();
+  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? label} accessibilityState={{ disabled: !!disabled }}
+    style={({ pressed }) => [{ minHeight: s(46), paddingVertical: s(11), paddingHorizontal: s(18), borderRadius: s(design.id === 'night' ? 12 : 14), borderWidth: design.id === 'play' ? 2 : 0, borderColor: C.ink, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.48 : pressed ? 0.78 : 1 }, design.id === 'play' ? shadow : null, style]}>
+    <Row gap={8}>{icon ? <Ionicons name={icon} size={s(17)} color={C.onAccent} /> : null}<Txt size={14} weight="bold" color={C.onAccent}>{label}</Txt></Row>
+  </Pressable>;
 }
 
-export function SubButton({ label, onPress, disabled, danger, style }: BtnProps & { danger?: boolean }) {
-  const { s } = useLayout();
-  return (
-    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button"
-      style={[{ borderWidth: 1, borderColor: C.line, borderRadius: s(10), paddingVertical: s(6), paddingHorizontal: s(14), backgroundColor: C.card, opacity: disabled ? 0.45 : 1, alignItems: 'center' }, style]}>
-      <Txt size={14} weight="bold" color={danger ? C.danger : C.ink}>{label}</Txt>
-    </Pressable>
-  );
+export function SubButton({ label, onPress, disabled, danger, style, icon, accessibilityLabel }: BtnProps & { danger?: boolean }) {
+  const { s, design } = useLayout();
+  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? label} accessibilityState={{ disabled: !!disabled }}
+    style={({ pressed }) => [{ minHeight: s(40), borderWidth: design.id === 'play' ? 1.5 : 1, borderColor: danger ? C.dangerBg : C.line, borderRadius: s(12), paddingVertical: s(8), paddingHorizontal: s(14), backgroundColor: danger ? C.dangerBg : pressed ? C.surface : C.card, opacity: disabled ? 0.55 : 1, alignItems: 'center', justifyContent: 'center' }, style]}>
+    <Row gap={7}>{icon ? icon === 'link-outline' ? <Feather name="link" size={s(16)} color={danger ? C.danger : C.ink} /> : <Ionicons name={icon} size={s(17)} color={danger ? C.danger : C.ink} /> : null}<Txt size={13} weight="bold" color={danger ? C.danger : C.ink}>{label}</Txt></Row>
+  </Pressable>;
 }
 
 export function MiniButton({ label, onPress, done }: BtnProps & { done?: boolean }) {
   const { s } = useLayout();
-  return (
-    <Pressable onPress={onPress} accessibilityRole="button"
-      style={{ borderWidth: 1, borderColor: done ? C.ok : C.line, backgroundColor: done ? C.okBg : C.card, borderRadius: 999, paddingVertical: s(3), paddingHorizontal: s(12) }}>
-      <Txt size={12} weight="bold" color={done ? C.ok : C.accent}>{label}</Txt>
-    </Pressable>
-  );
+  return <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => ({ minHeight: s(32), justifyContent: 'center', borderWidth: 1, borderColor: done ? C.okBg : C.line, backgroundColor: done ? C.okBg : pressed ? C.accentSoft : C.card, borderRadius: s(10), paddingVertical: s(4), paddingHorizontal: s(10) })}>
+    <Txt size={12} weight="bold" color={done ? C.ok : C.accent}>{label}</Txt>
+  </Pressable>;
 }
 
-// 押すと進む丸いボタン。ok は承認・フレンドになるなどの緑
 export function PillButton({ label, onPress, disabled, ok }: BtnProps & { ok?: boolean }) {
-  const { s } = useLayout();
-  const box: ViewStyle = { borderRadius: 999, paddingVertical: s(6), paddingHorizontal: s(14), alignItems: 'center' };
-  if (disabled) {
-    return <View style={[box, { backgroundColor: C.restBg }]}><Txt size={13} weight="bold" color={C.muted}>{label}</Txt></View>;
-  }
-  return (
-    <Pressable onPress={onPress} accessibilityRole="button">
-      {ok ? (
-        <View style={[box, { backgroundColor: C.ok }]}><Txt size={13} weight="bold" color="#fff">{label}</Txt></View>
-      ) : (
-        <LinearGradient colors={C.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={box}>
-          <Txt size={13} weight="bold" color="#fff">{label}</Txt>
-        </LinearGradient>
-      )}
-    </Pressable>
-  );
+  const { s, design } = useLayout();
+  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityState={{ disabled: !!disabled }}
+    style={({ pressed }) => ({ minHeight: s(38), borderRadius: s(design.id === 'play' ? 12 : 999), paddingVertical: s(8), paddingHorizontal: s(14), alignItems: 'center', justifyContent: 'center', backgroundColor: disabled ? C.restBg : ok ? C.ok : C.accent, opacity: pressed ? 0.75 : 1 })}>
+    <Txt size={12} weight="bold" color={disabled ? C.muted : ok && design.dark ? '#14291f' : ok ? '#ffffff' : C.onAccent}>{label}</Txt>
+  </Pressable>;
 }
 
 export function TextButton({ label, onPress, danger, disabled }: BtnProps & { danger?: boolean }) {
-  return (
-    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} hitSlop={6} style={{ opacity: disabled ? 0.45 : 1 }}>
-      <Txt size={13} weight="bold" color={danger ? C.danger : C.accent} style={{ textDecorationLine: 'underline' }}>{label}</Txt>
-    </Pressable>
-  );
+  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} hitSlop={6} style={({ pressed }) => ({ opacity: disabled ? 0.45 : pressed ? 0.65 : 1 })}>
+    <Txt size={13} weight="bold" color={danger ? C.danger : C.accent}>{label}</Txt>
+  </Pressable>;
 }
 
 // デモの中だけで使う、時間を進めるボタン
@@ -184,19 +165,11 @@ export function DemoButton({ label, onPress }: BtnProps) {
 
 // 選んだものが塗られる丸い選択肢
 export function Opt({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
-  const { s } = useLayout();
-  const box: ViewStyle = { borderRadius: 999, paddingVertical: s(3), paddingHorizontal: s(12), borderWidth: 1 };
-  return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: on }}>
-      {on ? (
-        <LinearGradient colors={C.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[box, { borderColor: 'transparent' }]}>
-          <Txt size={13} weight="bold" color="#fff">{label}</Txt>
-        </LinearGradient>
-      ) : (
-        <View style={[box, { borderColor: C.line, backgroundColor: C.card }]}><Txt size={13}>{label}</Txt></View>
-      )}
-    </Pressable>
-  );
+  const { s, design } = useLayout();
+  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: on }}
+    style={({ pressed }) => ({ minHeight: s(36), alignItems: 'center', justifyContent: 'center', borderRadius: s(design.id === 'play' ? 10 : 999), paddingVertical: s(6), paddingHorizontal: s(12), borderWidth: 1, borderColor: on ? C.accent : C.line, backgroundColor: on ? C.accentSoft : C.card, opacity: pressed ? 0.7 : 1 })}>
+    <Txt size={13} weight={on ? 'bold' : 'regular'} color={on ? C.accent : C.muted}>{label}</Txt>
+  </Pressable>;
 }
 export function Opts<T extends string | number>({ items, value, onChange }: { items: readonly T[]; value: T; onChange: (v: T) => void }) {
   return (
@@ -212,7 +185,7 @@ export function Check({ label, value, onChange }: { label: string; value: boolea
     <Pressable onPress={() => onChange(!value)} accessibilityRole="checkbox" accessibilityState={{ checked: value }}>
       <Row>
         <View style={{ width: s(20), height: s(20), borderRadius: s(5), borderWidth: 2, borderColor: value ? C.accent : C.line, backgroundColor: value ? C.accent : C.card, alignItems: 'center', justifyContent: 'center' }}>
-          {value ? <Ionicons name="checkmark" size={s(14)} color="#fff" /> : null}
+          {value ? <Feather name="check" size={s(14)} color={C.onAccent} /> : null}
         </View>
         <Txt size={14} weight="bold">{label}</Txt>
       </Row>
@@ -225,11 +198,11 @@ export function Field(props: TextInputProps & { mono?: boolean }) {
   const { style, mono, ...rest } = props;
   return (
     <TextInput
-      placeholderTextColor="#9aa0b5"
+      placeholderTextColor={C.muted}
       {...rest}
       style={[{
-        minHeight: s(40), borderWidth: 1, borderColor: C.line, borderRadius: s(10), paddingHorizontal: s(10), paddingVertical: s(6),
-        backgroundColor: C.bg, fontSize: s(15), fontFamily: mono ? F.bold : F.regular, color: C.ink,
+        minHeight: s(46), borderWidth: 1, borderColor: C.line, borderRadius: s(12), paddingHorizontal: s(12), paddingVertical: s(9),
+        backgroundColor: C.surface, fontSize: s(14), fontFamily: mono ? F.bold : F.regular, color: C.ink,
       }, style]}
     />
   );
@@ -237,21 +210,25 @@ export function Field(props: TextInputProps & { mono?: boolean }) {
 
 /* ---------- 小さな表示 ---------- */
 
-// ゲームの絵：IGDBのカバーの代わりの色。絵の上に文字を重ねない（app-12）
+// デモのパッケージ画像。未登録のゲームは画像なしと分かる表示にする。
 export function Art({ tag, size = 52 }: { tag: GameTag; size?: number }) {
   const { s } = useLayout();
+  const source = DEMO_COVERS[tag];
   return (
-    <LinearGradient colors={GAMES[tag].colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-      style={{ width: s(size), height: s(size * 4 / 3), borderRadius: s(6) }} />
+    <View accessibilityLabel={`${GAMES[tag].name}${source ? 'のパッケージ画像' : '：画像未登録'}`}
+      style={{ width: s(size), height: s(size * 1.5), borderRadius: s(5), overflow: 'hidden', backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+      {source ? <Image source={source} resizeMode="contain" style={{ width: '100%', height: '100%' }} /> : <Feather name="image" size={s(20)} color={C.muted} />}
+    </View>
   );
 }
 
 export function Avatar({ p, small }: { p: Profile | Person; small?: boolean }) {
-  const { s } = useLayout();
+  const { s, design } = useLayout();
   const size = s(small ? 32 : 56);
+  const pop = design.id === 'play';
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: p.color, alignItems: 'center', justifyContent: 'center', borderWidth: small ? 0 : 3, borderColor: '#fff' }}>
-      <Txt size={small ? 14 : 24} weight="bold" color="#fff">{p.nickname.slice(0, 1)}</Txt>
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: pop ? C.surface : p.color, alignItems: 'center', justifyContent: 'center', borderWidth: pop ? 1.5 : small ? 0 : 3, borderColor: pop ? C.ink : C.card }}>
+      <Txt size={small ? 14 : 24} weight="bold" color={pop ? C.ink : '#fff'}>{p.nickname.slice(0, 1)}</Txt>
     </View>
   );
 }
@@ -271,7 +248,7 @@ export function Badge({ label, tone }: { label: string; tone: 'ok' | 'warn' | 'r
   const bg = { ok: C.okBg, warn: C.warnBg, rest: C.restBg, danger: C.dangerBg }[tone];
   const fg = { ok: C.ok, warn: C.warn, rest: C.rest, danger: C.danger }[tone];
   return (
-    <View style={{ backgroundColor: bg, borderRadius: 999, paddingHorizontal: s(8), alignSelf: 'flex-start' }}>
+    <View style={{ backgroundColor: bg, borderRadius: 999, paddingHorizontal: s(9), paddingVertical: s(2), alignSelf: 'flex-start' }}>
       <Txt size={11} weight="bold" color={fg}>{label}</Txt>
     </View>
   );
@@ -295,7 +272,7 @@ export function Trust({ value }: { value: string | null | undefined }) {
   if (!value) return <Note>連携なし</Note>;
   return (
     <Row gap={4}>
-      <Ionicons name="shield-checkmark-outline" size={s(13)} color={C.ok} />
+      <Feather name="shield" size={s(13)} color={C.ok} />
       <Txt size={12} color={C.ok}>{value}</Txt>
     </Row>
   );
@@ -308,8 +285,8 @@ export function Chip({ label, locked, common, children }: { label: string; locke
       borderWidth: 1, borderStyle: locked ? 'dashed' : 'solid', borderColor: common ? C.ok : C.line,
       backgroundColor: common ? C.okBg : C.card, borderRadius: 999, paddingVertical: s(2), paddingHorizontal: s(11),
     }}>
-      {common ? <Ionicons name="checkmark" size={s(12)} color={C.ok} /> : null}
-      {locked ? <Ionicons name="lock-closed-outline" size={s(12)} color={C.muted} /> : null}
+      {common ? <Feather name="check" size={s(12)} color={C.ok} /> : null}
+      {locked ? <Feather name="lock" size={s(12)} color={C.muted} /> : null}
       <Txt size={13} weight={locked ? 'regular' : 'bold'} color={locked ? C.muted : C.ink}>{label}</Txt>
       {children}
     </Row>
@@ -330,29 +307,31 @@ export function Empty({ title, text, button }: { title: string; text: string; bu
 
 /* ---------- 段階を選ぶスライダー ---------- */
 
-// 点を並べた段階スライダー。押した点の値になる
+// 表示は細いバー、編集時だけつまみを出す。段階ごとのタップ・キーボード選択を保つ。
 function StepSlider({ count, value, color, onChange, startLabel, endLabel, label, valueText }: {
   count: number; value: number; color: string; onChange?: (v: number) => void;
   startLabel: string; endLabel: string; label: string; valueText: string;
 }) {
   const { s } = useLayout();
-  const dot = s(count > 5 ? 16 : 18);
+  const fraction = Math.max(0, Math.min(count - 1, value)) / (count - 1);
+  const position = `${fraction * 100}%` as const;
   return (
     <Row gap={8}>
       <Txt size={11} color={C.muted} style={{ width: s(34) }}>{startLabel}</Txt>
-      <View style={{ flex: 1, justifyContent: 'center' }} accessibilityRole="adjustable" accessibilityLabel={label} accessibilityValue={{ text: valueText }}>
-        <View style={{ position: 'absolute', left: dot / 2, right: dot / 2, height: 2, backgroundColor: C.line }} />
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          {Array.from({ length: count }, (_, i) => (
-            <Pressable key={i} onPress={onChange ? () => onChange(i) : undefined} disabled={!onChange} hitSlop={6}
-              accessibilityRole="button" accessibilityLabel={`${label} ${i + 1}`}
-              style={{
-                width: dot, height: dot, borderRadius: dot / 2, borderWidth: 2,
-                borderColor: i <= value ? color : C.line, backgroundColor: i <= value ? color : C.card,
-                ...(i === value ? { transform: [{ scale: 1.15 }] } : null),
-              }} />
-          ))}
+      <View style={{ flex: 1, height: s(onChange ? 36 : 14), justifyContent: 'center' }}
+        accessible={!onChange} accessibilityRole={onChange ? 'radiogroup' : 'text'}
+        accessibilityLabel={onChange ? label : `${label}：${valueText}`}>
+        <View pointerEvents="none" style={{ position: 'absolute', left: onChange ? `${50 / count}%` : 0, right: onChange ? `${50 / count}%` : 0, height: s(4), borderRadius: s(2), backgroundColor: C.line }}>
+          <View style={{ width: position, height: '100%', borderRadius: s(2), backgroundColor: color }} />
+          {onChange ? <View style={{ position: 'absolute', left: position, top: s(-6), marginLeft: s(-8), width: s(16), height: s(16), borderRadius: s(8), borderWidth: 2, borderColor: color, backgroundColor: C.card }} /> : null}
         </View>
+        {onChange ? <View style={{ flexDirection: 'row', height: '100%' }}>
+          {Array.from({ length: count }, (_, i) => (
+            <Pressable key={i} onPress={() => onChange(i)} accessibilityRole="radio"
+              accessibilityLabel={`${label}：${label === '熱量' ? HEAT[i] : i + 1}`} accessibilityState={{ checked: i === value }}
+              style={({ pressed }) => ({ flex: 1, height: '100%', borderRadius: s(4), backgroundColor: pressed ? C.accentSoft : 'transparent' })} />
+          ))}
+        </View> : null}
       </View>
       <Txt size={11} color={C.muted} style={{ width: s(34), textAlign: 'right' }}>{endLabel}</Txt>
     </Row>
@@ -377,9 +356,11 @@ export function SkillSlider({ value, onChange }: { value: number; onChange?: (v:
 export function RightsNote({ onOpen }: { onOpen: (url: string) => void }) {
   return (
     <Txt size={11} color={C.muted}>
-      ゲームの名前と画像は{' '}
-      <Text onPress={() => onOpen('https://www.igdb.com/')} style={{ textDecorationLine: 'underline' }}>IGDB.com</Text>
-      {' '}から。画像の権利は各ゲーム会社にあります。外してほしいときは運営までご連絡ください。
+      デモ画像の出典：{' '}
+      <Text onPress={() => onOpen('https://store.steampowered.com/')} style={{ textDecorationLine: 'underline' }}>Steam</Text>
+      {' / '}
+      <Text onPress={() => onOpen('https://www.nintendo.com/jp/switch/av5ja/index.html')} style={{ textDecorationLine: 'underline' }}>任天堂</Text>
+      {'。画像の権利は各ゲーム会社にあります。外してほしいときは運営までご連絡ください。'}
     </Txt>
   );
 }

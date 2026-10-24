@@ -29,10 +29,10 @@ test('Duplicate save requests commit once; an abandoned attempt cannot overwrite
   const first = deferred(), second = deferred();
   const save = createPendingSave();
   const commits: string[] = [];
-  const old = save.run(() => first.promise, () => commits.push('old'));
-  assert.equal(await save.run(async () => {}, () => commits.push('duplicate')), false);
+  const old = save.run(() => first.promise, () => { commits.push('old'); });
+  assert.equal(await save.run(async () => {}, () => { commits.push('duplicate'); }), false);
   save.cancel();
-  const current = save.run(() => second.promise, () => commits.push('current'));
+  const current = save.run(() => second.promise, () => { commits.push('current'); });
   first.resolve(); await old;
   assert.equal(save.isPending(), true);
   second.resolve(); assert.equal(await current, true);
@@ -87,4 +87,32 @@ test('Demo settings snapshots are shared immutably and resetting removes Steam v
   settings.reset();
   assert.equal(steamProfileVisible(settings.getSnapshot()), false);
   assert.deepEqual(settings.getSnapshot(), initial);
+});
+
+test('Async profile persistence keeps save pending and does not navigate after leaving', async () => {
+  const storage = deferred();
+  const started = deferred();
+  const save = createPendingSave();
+  let navigations = 0;
+  const action = save.run(async () => {}, async isCurrent => {
+    started.resolve();
+    await storage.promise;
+    if (isCurrent()) navigations++;
+  });
+  await started.promise;
+  assert.equal(save.isPending(), true);
+  assert.equal(await save.run(async () => {}, () => { navigations++; }), false);
+  save.cancel();
+  storage.resolve();
+  assert.equal(await action, false);
+  assert.equal(navigations, 0);
+});
+
+test('An async profile write failure releases the save guard for a retry', async () => {
+  const save = createPendingSave();
+  await assert.rejects(save.run(async () => {}, async () => { throw new Error('storage full'); }));
+  assert.equal(save.isPending(), false);
+  let committed = false;
+  assert.equal(await save.run(async () => {}, async () => { committed = true; }), true);
+  assert.equal(committed, true);
 });
