@@ -55,3 +55,40 @@ test('Provider failures are sanitized and never expose the returned token or bod
   const flow = createAuthFlow(auth, redirect, async () => null);
   await assert.rejects(flow.complete(`${redirect}?code=a`), error => !String(error).includes('secret'));
 });
+
+test('Sign-out attempts notification cleanup before invalidating the session', async () => {
+  const auth = fakeAuth();
+  const calls: string[] = [];
+  auth.signOut = async () => { calls.push('sign-out'); return { error: null }; };
+  const flow = createAuthFlow(auth, redirect, async () => null, async () => { calls.push('unregister'); });
+  await flow.signOut();
+  assert.deepEqual(calls, ['unregister', 'sign-out']);
+});
+
+test('Rejected notification cleanup cannot prevent a successful Auth sign-out', async () => {
+  const auth = fakeAuth();
+  let signedOut = false;
+  auth.signOut = async () => { signedOut = true; return { error: null }; };
+  const flow = createAuthFlow(auth, redirect, async () => null, async () => {
+    throw new Error('notification service unavailable');
+  });
+  await assert.doesNotReject(flow.signOut());
+  assert.equal(signedOut, true);
+});
+
+test('Auth sign-out failures still propagate after notification cleanup succeeds or fails', async () => {
+  for (const cleanupFails of [false, true]) {
+    const auth = fakeAuth();
+    let attempts = 0;
+    auth.signOut = async () => { attempts++; return { error: new Error('auth failure with private details') }; };
+    const flow = createAuthFlow(auth, redirect, async () => null, async () => {
+      if (cleanupFails) throw new Error('cleanup failure with private details');
+    });
+    await assert.rejects(flow.signOut(), error => {
+      assert.equal((error as { code: string }).code, 'provider');
+      assert.ok(!String(error).includes('private details'));
+      return true;
+    });
+    assert.equal(attempts, 1);
+  }
+});

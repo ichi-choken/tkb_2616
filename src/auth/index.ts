@@ -20,7 +20,7 @@ export function getAuthFlow() {
     if (Platform.OS === 'web') { window.location.assign(url); return null; }
     const result = await WebBrowser.openAuthSessionAsync(url, returnTo);
     return result.type === 'success' ? result.url : null;
-  });
+  }, unregisterPush);
   return flow;
 }
 export function authErrorMessage(error: unknown): string {
@@ -32,7 +32,5 @@ export async function signIn(provider: LoginProvider) {
   return getAuthFlow().signIn(provider);
 }
 export async function signOut() {
-  // Remove this session's device before invalidating the credential used to unregister it.
-  await unregisterPush();
   await getAuthFlow().signOut();
 }

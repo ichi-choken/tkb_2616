@@ -35,7 +35,7 @@ export async function requireRegisteredUser(auth: Pick<AuthPort, 'getUser'>): Pr
 }
 
 // Supabase manages OAuth state and the PKCE verifier. No guest account is created.
-export function createAuthFlow(auth: AuthPort, redirectTo: string, openUrl: (url: string, returnTo: string) => Promise<string | null>) {
+export function createAuthFlow(auth: AuthPort, redirectTo: string, openUrl: (url: string, returnTo: string) => Promise<string | null>, unregisterNotifications: () => Promise<void> = async () => {}) {
   const exchanges = new Map<string, Promise<{ id: string }>>();
   const complete = (callbackUrl: string) => {
     const { code, flowId } = parseAuthCallback(callbackUrl, redirectTo);
@@ -60,6 +60,9 @@ export function createAuthFlow(auth: AuthPort, redirectTo: string, openUrl: (url
       return callback ? { status: 'authenticated' as const, user: await complete(callback) } : { status: 'closed_or_redirecting' as const };
     },
     async signOut() {
+      // Try while the session still authorizes device cleanup. A cleanup failure
+      // must not prevent sign-out, and is not evidence that the device was removed.
+      try { await unregisterNotifications(); } catch { /* Best-effort notification cleanup. */ }
       const { error } = await auth.signOut();
       if (error) throw new AuthFlowError('provider');
       exchanges.clear();
