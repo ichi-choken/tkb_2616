@@ -24,6 +24,10 @@ insert into auth.users (id, email) values
 insert into public.games (id, name) values (1, 'テスト用のゲーム');
 
 select is((select count(*)::int from public.profiles), 4, 'ログインした人には利用者ができる');
+-- 参加する人にはニックネームを付けておく。ニックネームの無い人のゲーム内IDは、承認前でも名前として
+-- 募集する人に見える（requests-3）。その場合は approved_screens.test.sql で確かめる
+update public.profiles set nickname = 'ビー' where id = '00000000-0000-0000-0000-00000000000b';
+update public.profiles set nickname = 'シー' where id = '00000000-0000-0000-0000-00000000000c';
 
 -- 募集を出す ------------------------------------------------------------------
 
@@ -94,7 +98,7 @@ grant select on c_app to anon, authenticated;
 
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
 select is((select count(*)::int from public.applications), 2, '募集する人には、届いた参加希望が見える');
-select is((select count(*)::int from public.application_game_ids), 0, '承認する前は、参加者のゲーム内IDは見えない');
+select is((select count(*)::int from public.application_game_ids), 0, '承認する前は、ニックネームのある参加者のゲーム内IDは見えない');
 select is(
   (select count(*)::int from public.notifications where kind = '参加希望が届いた'),
   2, '参加希望が届くと、募集する人に知らせが届く（app-17）');
