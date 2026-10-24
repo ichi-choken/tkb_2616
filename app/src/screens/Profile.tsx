@@ -185,6 +185,9 @@ function ProfileEdit() {
   const p = st.draft!;
   const [adding, setAdding] = useState<AddKind | null>(null);
   const set = (fn: (d: NonNullable<typeof st.draft>) => void) => update((d) => { if (d.draft) fn(d.draft); });
+  // 遊ぶ時間帯の欄。72（文字が切れない幅）から始め、空きがあれば 76 まで広がる。
+  // 折り返しは始めの幅で決まるので、72 から始めると 320px のスマホでも1行に収まる
+  const timeBox = { flexGrow: 1, flexShrink: 0, flexBasis: s(72), minWidth: s(72), maxWidth: s(76), textAlign: 'center' as const };
 
   const save = async () => {
     if (!p.nickname.trim()) return toast('ニックネームを入れてください');
@@ -218,11 +221,12 @@ function ProfileEdit() {
               <Note color={C.warn}>ゲーム内IDやSNSの名前とは別にしておくと安心です</Note>
             </>)}
             <Divider />
-            {/* 「24:00」が収まる幅にそろえ、横にはみ出さないようにする */}
-            {formRow('遊ぶ時間帯', <Row>
-              <Field mono value={p.times.start} maxLength={5} style={{ width: s(76), textAlign: 'center' }} onChangeText={(v) => set((d) => { d.times.start = v; })} />
-              <Txt>〜</Txt>
-              <Field mono value={p.times.end} maxLength={5} style={{ width: s(76), textAlign: 'center' }} onChangeText={(v) => set((d) => { d.times.end = v; })} />
+            {/* 「24:00」が収まる幅にそろえ、横にはみ出さないようにする。
+                320px のスマホでは 76 を2つ並べると少し足りないので、文字が切れない幅（72）まで詰め、それでも入らなければ終わりの欄を次の行に回す */}
+            {formRow('遊ぶ時間帯', <Row wrap>
+              <Field mono value={p.times.start} maxLength={5} accessibilityLabel="遊ぶ時間帯の始まり" style={timeBox} onChangeText={(v) => set((d) => { d.times.start = v; })} />
+              <Txt style={{ flexShrink: 0 }}>〜</Txt>
+              <Field mono value={p.times.end} maxLength={5} accessibilityLabel="遊ぶ時間帯の終わり" style={timeBox} onChangeText={(v) => set((d) => { d.times.end = v; })} />
             </Row>)}
             <Divider />
             {formRow('地方', <Opts items={REGION_OPTIONS} value={p.region as (typeof REGION_OPTIONS)[number]} onChange={(v) => set((d) => { d.region = v; })} />)}
