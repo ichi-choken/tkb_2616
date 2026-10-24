@@ -20,7 +20,7 @@ async function tokenHash(token: string) {
   return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
 }
 
-Deno.serve(async request => {
+async function handle(request: Request): Promise<Response> {
   let headers: Record<string, string> = {};
   try {
     headers = originHeaders(request);
@@ -44,6 +44,22 @@ Deno.serve(async request => {
       check(error); return reply({ status: 'registered' }, 200, headers);
     }
     await verifyWorker(request);
+    const internal = (body: Record<string, unknown>) => handle(new Request(request.url, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-integration-worker-key': request.headers.get('x-integration-worker-key')! }, body: JSON.stringify(body),
+    }));
+    if (body.action === 'tick') {
+      const results = await Promise.all([internal({ action: 'receipts' }), internal({ action: 'retry' })]);
+      return reply({ receipts: await results[0]!.json(), retries: await results[1]!.json() }, results.every(r => r.ok) ? 200 : 503, headers);
+    }
+    if (body.action === 'retry') {
+      // Retry individual devices so a failed later page cannot starve behind accepted devices.
+      const due = await db.from('integration_push_deliveries').select('event,device_id').eq('status', 'pending')
+        .lte('next_attempt_at', new Date().toISOString()).or(`lease_until.is.null,lease_until.lt.${new Date().toISOString()}`)
+        .order('next_attempt_at').limit(4);
+      check(due.error);
+      const results = await Promise.all((due.data ?? []).map(row => internal({ action: 'send', event: row.event, deviceId: row.device_id })));
+      return reply({ checked: results.length, failed: results.filter(result => !result.ok).length }, results.every(r => r.ok) ? 200 : 503, headers);
+    }
     const push = new ExpoPushClient(Deno.env.get('EXPO_ACCESS_TOKEN'));
     if (body.action === 'send') {
       const event = eventOf(body.event);
@@ -51,6 +67,7 @@ Deno.serve(async request => {
       // Bound worst-case network time. The caller continues while nextDeviceCursor is present.
       let query = db.from('integration_push_devices').select('*').eq('user_id', event.recipientId).order('id').limit(10);
       if (cursor) query = query.gt('id', cursor);
+      if (body.deviceId !== undefined) query = query.eq('id', uuid(body.deviceId));
       const devices = await query;
       check(devices.error);
       const results: { status: string; retryAfterMs?: number }[] = [];
@@ -119,8 +136,9 @@ Deno.serve(async request => {
           check(removed.error);
         }
       }
-      return reply({ checked: due.data.length, retryEvents }, 200, headers);
+      return reply({ checked: due.data.length, retryQueued: retryEvents.length }, 200, headers);
     }
     throw new IntegrationError('invalid_payload');
   } catch (error) { return failure(error, headers); }
-});
+}
+Deno.serve(handle);
