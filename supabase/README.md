@@ -18,6 +18,8 @@ npx supabase test db
 - 表や関数を変えたら `npx supabase db reset` で作り直し、`npx supabase gen types typescript --local > supabase/database.types.ts` で型を作り直す
 - `seed.sql` のゲームは手元だけの仮のもの。クラウドには入らない
 
+既存データを持つ環境を更新するときは、未適用の追加マイグレーションを順番に適用する。上の `db reset` は作り直してよい手元の環境向けで、共有DBの更新には使わない。2026-10-25のレビュー修正は既存関数の更新だけで、表・既存行・RPCの引数と戻り値・権限を保持する。旧環境からの保持検証は `tests/database-review-regressions.test.ts`。
+
 ## 画面からの使い方
 
 画面に入れてよいのは、Supabase の URL と公開用の鍵（`sb_publishable_`）だけ。
@@ -66,7 +68,7 @@ const { data: mine } = await supabase
 
 約束：
 
-- どの関数も、第1引数に `p_op_id`（画面が操作ごとに作る UUID。`crypto.randomUUID()`）を渡す。通信が切れて送り直すときは、同じ `p_op_id` を使う。同じ ID には、最初の結果が返り、募集や成立が重ならない
+- どの関数も、第1引数に `p_op_id`（画面が操作ごとに作る UUID。`crypto.randomUUID()`）を渡す。同じ利用者・操作・対象・入力を通信切断後に送り直すときだけ同じ ID を使い、どれかが変わったら新しい ID を作る。再送で募集や成立を重ねない。`update_meeting` は再送でも現在の閲覧可否を確かめ、終了後の部屋情報を返さない
 - ログインしていないと、エラー（HTTP 401）になる
 - 受け付けなかったときは、エラーではなく `{ ok: false, reason, status? }` が返る。`status` は、そのときの募集の状態。画面は理由と最新の状態を出す
 
