@@ -124,3 +124,13 @@ test('Authorization codes expire; simultaneous token exchanges produce one acces
   expired.advance(120_000);
   assert.equal((await expired.handle(expired.tokenRequest(expiredCode))).status, 400);
 });
+test('Steam login routes the paths the hosted gateway passes on, without /functions/v1', async () => {
+  const t = await setup();
+  const strip = (u: URL) => { const v = new URL(u); v.pathname = v.pathname.replace('/functions/v1', ''); return v; };
+  const auth = await t.handle(new Request(strip(t.url)));
+  assert.equal(auth.status, 302);
+  assert.equal(new URL(auth.headers.get('location')!).origin, 'https://steamcommunity.com');
+  const callback = await t.handle(new Request(strip(t.callback)));
+  assert.equal(callback.status, 302);
+  assert.equal(new URL(callback.headers.get('location')!).origin + new URL(callback.headers.get('location')!).pathname, config.redirectUri);
+});

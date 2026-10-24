@@ -90,6 +90,8 @@
 | email_optional | `true`。Steamからメールは取れない |
 | scopes | 空配列。userinfoは検証済みSteamIDだけ |
 
+管理画面の Manual configuration は、OAuth2 でも Issuer URL を必須にしていて作れない（2026-10-25）。`node scripts/setup-steam-login.mjs <プロジェクトのref>` で、管理用 API から上の値で作る（既にあれば直す）。Client Secret は `.env.edge.local` の値を使い、表示しない。
+
 5. AppleのWeb OAuthにはServices ID・署名設定等が必要。生成したclient secretは6か月以内に更新する。`.p8`自体の定期交換とは区別する。今回のコードはOAuthブラウザ経由。iOSネイティブのApple専用UI・署名済み実機確認は未完了。
 6. Discordの任意連携用callbackは `/auth/link-callback` と `?native=1` 付き。scopeは `identify` のみ。ログイン提供元が内部的に保存するAuth metadataと、アプリの任意連携スナップショットを混同しない。Auth metadataをプロフィールへ転記しない。
 7. SteamのAPI取得には `STEAM_WEB_API_KEY`、ログインにはcustom OAuth2設定が必要。片方を設定しただけで両方を疎通済みとしない。

@@ -51,7 +51,9 @@ export function ConnectedSettingsScreen() {
           <Txt size={15} weight="bold" style={{ flex: 1 }}>{state.authLoading ? 'ログイン状態を確認しています…' : state.userId ? 'ログイン中' : '未ログイン'}</Txt>
           {!state.configured ? <Badge label="未設定" tone="warn" /> : null}
         </Row>
-        <Note>この設定画面は実際のログイン・連携状態を表示します。募集やプロフィールなど、ほかの画面は引き続きデモです。</Note>
+        <Note>{state.configured
+          ? 'この設定画面は実際のログイン・連携状態を表示します。募集・参加・承認も実際のデータで動きます。プロフィールとフレンドは、まだデモです。'
+          : 'この設定画面は実際のログイン・連携状態を表示します。接続先が未設定のため、ほかの画面はデモです。'}</Note>
         {state.userId ? <SubButton label={state.busy === 'logout' ? 'ログアウト中…' : 'ログアウト'} disabled={disabled} onPress={async () => {
           const userId = state.userId;
           if (await confirm('ログアウトしますか？') && controller.getSnapshot().userId === userId) await controller.logout();

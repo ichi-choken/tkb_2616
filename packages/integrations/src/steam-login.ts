@@ -74,10 +74,14 @@ export function createSteamLoginHandler(config: SteamLoginConfig, store: SteamLo
   const redirectUri = callbackUrl(config.redirectUri).href;
   if (base.search || base.pathname.endsWith('/') || !config.clientId || config.clientSecret.length < 32) throw new IntegrationError('configuration');
   const callbackBase = new URL(base.href + '/callback');
+  // The hosted gateway strips /functions/v1 before the function sees the request, so compare without it.
+  const route = (pathname: string) => pathname.replace(/^\/functions\/v1(?=\/)/, '');
+  const prefix = route(base.pathname);
   return async (request: Request): Promise<Response> => {
     try {
       const url = new URL(request.url); const now = clock();
-      if (url.pathname === base.pathname + '/authorize' && request.method === 'GET') {
+      const path = route(url.pathname);
+      if (path === prefix + '/authorize' && request.method === 'GET') {
         const p = url.searchParams;
         if (one(p, 'client_id') !== config.clientId || one(p, 'redirect_uri') !== redirectUri || one(p, 'response_type') !== 'code') throw new IntegrationError('unauthorized');
         const challenge = one(p, 'code_challenge');
@@ -88,7 +92,7 @@ export function createSteamLoginHandler(config: SteamLoginConfig, store: SteamLo
         await store.putAttempt(await credentialHash(nonce), { returnTo: returnTo.href, createdAt: now, redirectUri, state, challenge }, now + 300_000);
         return redirect(new URL(steamAuthorizationUrl(returnTo.href)));
       }
-      if (url.pathname === callbackBase.pathname && request.method === 'GET') {
+      if (path === prefix + '/callback' && request.method === 'GET') {
         const attempt = await store.consumeAttempt(await credentialHash(one(url.searchParams, 'state')), now);
         if (!attempt) throw new IntegrationError('unauthorized');
         // Use the configured public callback base when Edge is behind a gateway.
@@ -103,7 +107,7 @@ export function createSteamLoginHandler(config: SteamLoginConfig, store: SteamLo
         }
         return redirect(target);
       }
-      if (url.pathname === base.pathname + '/token' && request.method === 'POST') {
+      if (path === prefix + '/token' && request.method === 'POST') {
         const form = await readForm(request);
         await authenticateClient(request, form, config);
         if (one(form, 'grant_type') !== 'authorization_code' || one(form, 'redirect_uri') !== redirectUri) throw new IntegrationError('unauthorized');
@@ -114,7 +118,7 @@ export function createSteamLoginHandler(config: SteamLoginConfig, store: SteamLo
         const access = randomToken(); await store.putAccess(await credentialHash(access), code.steamId, now + 60_000);
         return json({ access_token: access, token_type: 'Bearer', expires_in: 60 });
       }
-      if (url.pathname === base.pathname + '/userinfo' && request.method === 'GET') {
+      if (path === prefix + '/userinfo' && request.method === 'GET') {
         const bearer = /^Bearer ([a-f0-9]{64})$/i.exec(request.headers.get('authorization') ?? '');
         if (!bearer) throw new IntegrationError('unauthorized');
         const id = await store.readAccess(await credentialHash(bearer[1]!), now);

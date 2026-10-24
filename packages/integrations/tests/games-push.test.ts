@@ -37,7 +37,7 @@ test('IGDB: a chosen game is read with the columns to store, and Steam is recogn
     if (String(url).includes('id.twitch.tv')) return response({ access_token: 'token', expires_in: 3600 });
     query = String(init?.body);
     return response([{ id: 7, name: 'Splatoon 3', first_release_date: 1662681600,
-      alternative_names: [{ name: 'スプラトゥーン3' }, { name: 'Splatoon 3' }], game_localizations: [{ name: 'スプラトゥーン3' }, { name: '斯普拉遁3' }],
+      alternative_names: [{ name: 'スプラトゥーン3' }, { name: 'Splatoon 3' }, { name: 'start_protected_game.exe' }], game_localizations: [{ name: 'スプラトゥーン3' }, { name: '斯普拉遁3' }],
       platforms: [{ name: 'Nintendo Switch' }], cover: { image_id: 'co5abc' },
       external_games: [{ uid: '123', url: 'https://www.gog.com/game/x' }, { uid: '1172470', url: 'https://store.steampowered.com/app/1172470' }] }]);
   });

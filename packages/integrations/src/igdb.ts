@@ -43,9 +43,10 @@ export function parseGameRecord(value: unknown): GameRecord | null {
     return raw.map(object);
   };
   const name = text(game.name);
-  // Alternative names and per-region titles both make the same tag findable (server-8).
+  // Alternative names and per-region titles both make the same tag findable (server-8). IGDB is
+  // still moving executable names (game.exe) out of alternative names, so they are left out.
   const alternativeNames = [...new Set([...list(game.alternative_names), ...list(game.game_localizations)]
-    .map(x => nullableText(x.name)).filter((x): x is string => x !== null && x !== name))];
+    .map(x => nullableText(x.name)).filter((x): x is string => x !== null && x !== name && !/\.exe$/i.test(x)))];
   const steam = list(game.external_games).map(steamAppIdOf).find(x => x !== null) ?? null;
   return { id: integer(game.id), name, alternativeNames,
     platforms: [...new Set(list(game.platforms).map(p => text(p.name)))],
