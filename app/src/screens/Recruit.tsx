@@ -1,8 +1,9 @@
 // 募集する人：募集を出す、届いた参加希望
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { GAMES, PEOPLE, PLATFORMS, SKILLS, VC, WHEN, isTime, type PersonId } from '../data';
 import { fakeSave, inviteText, newRecruitForm, useStore, type InviteParts, type RecStatus, type Request, type State } from '../store';
+import { createPendingSave } from '../pending-save';
 import { C, useLayout } from '../theme';
 import {
   AppBar, Art, Avatar, Badge, Block, Card, Check, Cols, Divider, Empty, Field, HeatSlider, MainButton,
@@ -39,6 +40,8 @@ export function CreateScreen({ game }: { game?: string }) {
   const r = st.rec;
   const f = r.form;
   const editing = r.editing;
+  const [pendingSave] = useState(createPendingSave);
+  useEffect(() => () => pendingSave.cancel(), [pendingSave]);
 
   // プロフィールのゲームを押して来たら、そのゲームを選んだ状態で開く（profile-4）
   useEffect(() => {
@@ -51,20 +54,33 @@ export function CreateScreen({ game }: { game?: string }) {
   const invite = inviteText(f, r.parts);
 
   const saveEdit = async () => {
+    if (pendingSave.isPending()) return;
     if (r.inviteDraft && !/^https:\/\//.test(r.inviteDraft)) return toast('招待URLは https:// から入れてください');
     if (f.when !== '未定' && !isTime(f.time)) return toast('時刻は 21:00 のように入れてください');
-    update((d) => { d.rec.busy = true; });
-    await fakeSave();
-    // 編集でも「プロフィールにも保存」にチェックしていれば、プロフィールに反映する
-    if (f.saveToProfile) saveGameToProfile(f);
-    update((d) => {
-      d.rec.room = d.rec.roomDraft.trim();
-      d.rec.inviteUrl = d.rec.inviteDraft.trim();
-      d.rec.editing = false;
-      d.rec.saved = null;
-      d.rec.busy = false;
-    });
-    toast(f.saveToProfile ? '募集の変更を保存し、プロフィールにも保存しました' : '募集の変更を保存しました');
+    try {
+      await pendingSave.run(async () => {
+        update((d) => { d.rec.busy = true; });
+        await fakeSave();
+      }, () => {
+        // 画面を離れた後の待機結果からは、プロフィールも募集も更新しない。
+        if (f.saveToProfile) saveGameToProfile(f);
+        update((d) => {
+          d.rec.room = d.rec.roomDraft.trim();
+          d.rec.inviteUrl = d.rec.inviteDraft.trim();
+          d.rec.editing = false;
+          d.rec.saved = null;
+          d.rec.busy = false;
+        });
+        toast(f.saveToProfile ? '募集の変更を保存し、プロフィールにも保存しました' : '募集の変更を保存しました');
+        go('requests');
+      });
+    } catch {
+      update((d) => { d.rec.busy = false; });
+      toast('変更を保存できませんでした。もう一度お試しください');
+    }
+  };
+  const cancelEdit = () => {
+    if (pendingSave.isPending()) return;
     go('requests');
   };
 
@@ -146,7 +162,7 @@ export function CreateScreen({ game }: { game?: string }) {
         </FormRow>
       </Card>
       <MainButton label={r.busy ? '保存中…' : '変更を保存'} disabled={r.busy} onPress={saveEdit} />
-      <View style={{ alignItems: 'center' }}><TextButton label="保存せずに戻る" onPress={() => go('requests')} /></View>
+      <View style={{ alignItems: 'center' }}><TextButton label="保存せずに戻る" disabled={r.busy} onPress={cancelEdit} /></View>
     </>
   ) : (
     <>
@@ -176,7 +192,7 @@ export function CreateScreen({ game }: { game?: string }) {
 
   return (
     <Stack>
-      <AppBar title={editing ? '募集を編集' : '募集を出す'} onBack={editing ? () => go('requests') : undefined} />
+      <AppBar title={editing ? '募集を編集' : '募集を出す'} onBack={editing && !r.busy ? cancelEdit : undefined} />
       <Cols even left={form} right={side} />
     </Stack>
   );

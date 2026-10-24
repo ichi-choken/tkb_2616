@@ -163,9 +163,9 @@ export function PillButton({ label, onPress, disabled, ok }: BtnProps & { ok?: b
   );
 }
 
-export function TextButton({ label, onPress, danger }: BtnProps & { danger?: boolean }) {
+export function TextButton({ label, onPress, danger, disabled }: BtnProps & { danger?: boolean }) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" hitSlop={6}>
+    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} hitSlop={6} style={{ opacity: disabled ? 0.45 : 1 }}>
       <Txt size={13} weight="bold" color={danger ? C.danger : C.accent} style={{ textDecorationLine: 'underline' }}>{label}</Txt>
     </Pressable>
   );

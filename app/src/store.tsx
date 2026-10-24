@@ -199,6 +199,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (d.rec.editing && route.name !== 'create' && d.rec.saved) {
         d.rec.form = d.rec.saved;
         d.rec.editing = false;
+        d.rec.busy = false;
       }
       d.route = route;
     });

@@ -1,9 +1,10 @@
 // 設定：アカウント（ログイン）と、Steam・Discordとの連携（account-1〜12、server-41・62〜64・75）
-// 連携の状態はこの画面だけで使うので、アプリ全体の状態とは別に、ここで持つ
+// デモの連携・表示設定はプロフィールと同じ状態を参照する
 import { useSyncExternalStore } from 'react';
 import { Platform, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useStore } from '../store';
+import { demoSettings, freshLink, type Service, type Link, type SteamItem, type Settings } from '../demo-settings-state';
 import { C, useLayout } from '../theme';
 import {
   AppBar, Badge, Block, Card, Check, Cols, DemoButton, Divider, MainButton, Note, PillButton, Row, Stack, SubButton,
@@ -12,47 +13,13 @@ import {
 
 /* ---------- 状態 ---------- */
 
-type Service = 'steam' | 'discord';
-// 連携の状態の表：元の状態（未連携 or 連携済み）・認証中・失敗・完了
-type Phase = 'idle' | 'authing' | 'failed';
-// 取得の失敗と再認証の表：自動更新・再試行待ち・再連携待ち・非公開
-type Fetch = 'auto' | 'retry' | 'relink' | 'private';
-type SteamItem = 'age' | 'level' | 'games';
-
-type Link = { linked: boolean; phase: Phase; fetch: Fetch; lastOk: string | null };
-type Settings = {
-  login: 'discord' | 'google' | 'steam' | 'apple' | null;
-  googleStep: boolean; // アプリ内ブラウザでGoogleを選んだあと、先に「ブラウザで開く」を出している
-  inApp: boolean; // （デモ）アプリ内ブラウザとして見る
-  steam: Link;
-  discord: Link;
-  steamShow: Record<SteamItem, boolean>;
-};
-
-const freshLink = (): Link => ({ linked: false, phase: 'idle', fetch: 'auto', lastOk: null });
-const fresh = (): Settings => ({
-  login: null,
-  googleStep: false,
-  inApp: false,
-  steam: freshLink(),
-  discord: freshLink(),
-  steamShow: { age: true, level: true, games: true },
-});
-
-let current = fresh();
-const listeners = new Set<() => void>();
-function set(fn: (d: Settings) => void) {
-  const next: Settings = JSON.parse(JSON.stringify(current));
-  fn(next);
-  current = next;
-  listeners.forEach((l) => l());
-}
+const set = demoSettings.update;
 function useSettings() {
-  return useSyncExternalStore((l) => { listeners.add(l); return () => { listeners.delete(l); }; }, () => current);
+  return useSyncExternalStore(demoSettings.subscribe, demoSettings.getSnapshot, demoSettings.getSnapshot);
 }
-// デモの「最初から」で、連携も最初に戻す
+// デモの「最初から」で、プロフィールと設定を同時にリセットする
 export function resetSettings() {
-  set((d) => { Object.assign(d, fresh()); });
+  demoSettings.reset();
 }
 
 const now = () => {
