@@ -21,7 +21,7 @@ export function Txt({ children, size = 15, weight = 'regular', color = C.ink, st
   const { s } = useLayout();
   const family = weight === 'display' ? F.display : F[weight];
   return (
-    <Text numberOfLines={numberOfLines} style={[{ fontFamily: family, fontSize: s(size), lineHeight: s(size * 1.65), letterSpacing: weight === 'display' ? -0.4 : 0, color }, style]}>
+    <Text numberOfLines={numberOfLines} style={[{ fontFamily: family, fontSize: s(size), lineHeight: s(size * 1.5), letterSpacing: weight === 'display' ? -0.4 : 0, color }, style]}>
       {children}
     </Text>
   );
@@ -33,7 +33,7 @@ export function Row({ children, gap = 8, wrap, style }: { children: ReactNode; g
   const { s } = useLayout();
   return <View style={[{ flexDirection: 'row', alignItems: 'center', gap: s(gap), flexWrap: wrap ? 'wrap' : 'nowrap' }, style]}>{children}</View>;
 }
-export function Stack({ children, gap = 20, style }: { children: ReactNode; gap?: number; style?: StyleProp<ViewStyle> }) {
+export function Stack({ children, gap = 16, style }: { children: ReactNode; gap?: number; style?: StyleProp<ViewStyle> }) {
   const { s } = useLayout();
   return <View style={[{ gap: s(gap) }, style]}>{children}</View>;
 }
@@ -43,7 +43,7 @@ export function Cols({ left, right, even }: { left: ReactNode; right: ReactNode;
   const { wide, s } = useLayout();
   if (!wide) return <Stack>{left}{right}</Stack>;
   return (
-    <View style={{ flexDirection: 'row', gap: s(24), alignItems: 'flex-start' }}>
+    <View style={{ flexDirection: 'row', gap: s(20), alignItems: 'flex-start' }}>
       <Stack style={{ flex: even ? 1 : 5, minWidth: 0 }}>{left}</Stack>
       <Stack style={{ flex: even ? 1 : 7, minWidth: 0 }}>{right}</Stack>
     </View>
@@ -51,13 +51,15 @@ export function Cols({ left, right, even }: { left: ReactNode; right: ReactNode;
 }
 
 // 広い画面では、子を2列（とても広ければ3列）のカードに並べる
-export function Grid({ children }: { children: ReactNode[] }) {
+export function Grid({ children, columns }: { children: ReactNode[]; columns?: number }) {
   const { wide, width, s } = useLayout();
-  const n = !wide ? 1 : width >= 1500 ? 3 : 2;
+  const n = columns ?? (!wide ? 1 : width >= 1500 ? 3 : 2);
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: s(12) }}>
-      {children.map((child, i) => (
-        <View key={i} style={{ width: n === 1 ? '100%' : `${100 / n - 1.5}%` }}>{child}</View>
+    <View style={{ gap: s(12) }}>
+      {Array.from({ length: Math.ceil(children.length / n) }, (_, row) => (
+        <View key={row} style={{ flexDirection: 'row', gap: s(12), alignItems: 'flex-start' }}>
+          {Array.from({ length: n }, (_, col) => <View key={col} style={{ flex: 1, minWidth: 0 }}>{children[row * n + col]}</View>)}
+        </View>
       ))}
     </View>
   );
@@ -65,23 +67,18 @@ export function Grid({ children }: { children: ReactNode[] }) {
 
 /* ---------- 見出しとカード ---------- */
 
-// 画面の見出しの文字の大きさ。見出しにほかの列をそろえるときにも使う
-export const appBarTitleSize = (designId: string, wide: boolean) => (designId === 'play' ? 21 : wide ? 27 : 25);
-// AppBar の上の余白
-export const appBarTop = (wide: boolean) => (wide ? 32 : 24);
-
-// rightNextToTitle：right を右端ではなく、見出しのすぐ右に置く
+// rightNextToTitle：right を見出しのすぐ右に置く
 export function AppBar({ title, right, onBack, lead, subtitle, rightNextToTitle }: { title: string; right?: ReactNode; onBack?: () => void; lead?: ReactNode; subtitle?: string; rightNextToTitle?: boolean }) {
   const { s, wide, design } = useLayout();
   return (
-    <Stack gap={5} style={{ paddingTop: s(appBarTop(wide)), paddingBottom: s(10) }}>
+    <Stack gap={4} style={{ paddingTop: s(wide ? 20 : 14) }}>
       <Row gap={12} style={{ alignItems: 'center' }}>
         {onBack ? <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="戻る" hitSlop={8}
           style={({ pressed }) => ({ width: s(36), height: s(36), borderRadius: s(12), borderWidth: 1, borderColor: C.line, backgroundColor: pressed ? C.accentSoft : C.card, alignItems: 'center', justifyContent: 'center' })}>
           <Feather name="arrow-left" size={s(17)} color={C.ink} />
         </Pressable> : null}
         {lead}
-        <Txt size={appBarTitleSize(design.id, wide)} weight="display" style={rightNextToTitle ? { flexShrink: 1 } : { flex: 1 }}>{title}</Txt>
+        <Txt size={design.id === 'play' ? 20 : wide ? 26 : 22} weight="display" style={rightNextToTitle ? { flexShrink: 1, minWidth: 0 } : { flex: 1, minWidth: 0 }}>{title}</Txt>
         {right}
       </Row>
       {subtitle ? <Txt size={13} color={C.muted}>{subtitle}</Txt> : null}
@@ -91,7 +88,7 @@ export function AppBar({ title, right, onBack, lead, subtitle, rightNextToTitle 
 
 export function Card({ children, style, pad }: { children: ReactNode; style?: StyleProp<ViewStyle>; pad?: boolean }) {
   const { s, design } = useLayout();
-  return <View style={[{ backgroundColor: C.card, borderRadius: s(design.radius), borderWidth: design.border, borderColor: design.id === 'play' ? C.ink : C.line, padding: pad ? s(20) : 0 }, shadow, style]}>{children}</View>;
+  return <View style={[{ backgroundColor: C.card, borderRadius: s(design.radius), borderWidth: design.border, borderColor: design.id === 'play' ? C.ink : C.line, padding: pad ? s(16) : 0 }, shadow, style]}>{children}</View>;
 }
 
 export function Block({ title, count, right, children }: { title: string; count?: number; right?: ReactNode; children: ReactNode }) {
@@ -99,7 +96,7 @@ export function Block({ title, count, right, children }: { title: string; count?
   return (
     <Stack gap={10}>
       <Row gap={8} style={{ minHeight: s(28), paddingHorizontal: s(2) }}>
-        <Txt size={14} weight="bold" color={C.ink}>{title}</Txt>
+        <Txt size={15} weight="bold" color={C.ink}>{title}</Txt>
         {count !== undefined ? <Txt size={12} color={C.muted}>{count}</Txt> : null}
         <View style={{ flex: 1 }} />
         {right}
@@ -114,7 +111,7 @@ export function Divider() {
 }
 
 export function Note({ children, color = C.muted, style }: { children: ReactNode; color?: string; style?: StyleProp<TextStyle> }) {
-  return <Txt size={12} color={color} style={style}>{children}</Txt>;
+  return <Txt size={13} color={color} style={style}>{children}</Txt>;
 }
 
 /* ---------- ボタン ---------- */
@@ -139,8 +136,8 @@ export function SubButton({ label, onPress, disabled, danger, style, icon, acces
 
 export function MiniButton({ label, onPress, done }: BtnProps & { done?: boolean }) {
   const { s } = useLayout();
-  return <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => ({ minHeight: s(32), justifyContent: 'center', borderWidth: 1, borderColor: done ? C.okBg : C.line, backgroundColor: done ? C.okBg : pressed ? C.accentSoft : C.card, borderRadius: s(10), paddingVertical: s(4), paddingHorizontal: s(10) })}>
-    <Txt size={12} weight="bold" color={done ? C.ok : C.accent}>{label}</Txt>
+  return <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => ({ minHeight: s(36), justifyContent: 'center', borderWidth: 1, borderColor: done ? C.okBg : C.line, backgroundColor: done ? C.okBg : pressed ? C.accentSoft : C.card, borderRadius: s(10), paddingVertical: s(5), paddingHorizontal: s(10) })}>
+    <Txt size={13} weight="bold" color={done ? C.ok : C.accent}>{label}</Txt>
   </Pressable>;
 }
 

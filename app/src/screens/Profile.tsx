@@ -12,7 +12,7 @@ import { steamProfileVisible } from '../demo-settings-state';
 import { AddModal, type AddKind } from '../AddModal';
 import { C, useLayout } from '../theme';
 import {
-  AppBar, Art, Avatar, Block, Card, Chip, Cols, Divider, Empty, Field, HeatSlider, HeatTag, MainButton, appBarTitleSize, appBarTop,
+  AppBar, Art, Avatar, Block, Card, Chip, Cols, Divider, Empty, Field, Grid, HeatSlider, HeatTag, MainButton,
   MiniButton, Note, Opts, PillButton, RightsNote, Row, SkillSlider, Stack, SubButton, TextButton, Trust, Txt,
 } from '../ui';
 
@@ -23,15 +23,11 @@ export function ProfileScreen() {
   return st.draft ? <ProfileEdit /> : <ProfileView />;
 }
 
-// 広い画面で、ゲームの列の上に空ける高さ。「ゲーム」の行の真ん中を、見出し「プロフィール」の行の真ん中にそろえる。
-// 見出しの行の真ん中は「上の余白 + 文字の行の高さ（大きさ×1.65）の半分」。「ゲーム」の行は、空けた高さから約35下に真ん中がある
-const gamesTop = (designId: string) => appBarTop(true) + (appBarTitleSize(designId, true) * 1.65) / 2 - 35;
-
 function ProfileView() {
   const { s: st, update, editProfile, go, copy, toast, open } = useStore();
   const settings = useSyncExternalStore(demoSettings.subscribe, demoSettings.getSnapshot, demoSettings.getSnapshot);
   const [adding, setAdding] = useState<AddKind | null>(null);
-  const { wide, s, design } = useLayout();
+  const { wide, width, s, design } = useLayout();
   const p = st.me;
 
   // 熱量・実力はスライダーでその場で直せる（profile-5）。部品ごとに保存する（ui-1）
@@ -44,70 +40,66 @@ function ProfileView() {
     toast(`熱量を「${HEAT[value]}」にしました`);
   };
 
-  // 広い画面では、趣味と好きなものを左の列（名前の下の空き）に置く
-  const hobbiesAndLikes = (
-    <>
-      <Block title="趣味" right={<MiniButton label="＋ 追加" onPress={() => setAdding('hobbies')} />}>
-        <Card>
-          {p.hobbies.length ? p.hobbies.map((h, i) => (
-            <View key={h.name}>
-              {i > 0 ? <Divider /> : null}
-              <HobbyRow name={h.name} heat={h.heat} onHeat={(v) => setHobbyHeat(i, v)} />
-            </View>
-          )) : <Empty title="趣味がまだ入っていません" text="「＋ 追加」から入れられます。" />}
-        </Card>
-      </Block>
-
-      <Block title="好きなもの" right={<MiniButton label="＋ 追加" onPress={() => setAdding('likes')} />}>
-        <Card pad>
-          {p.likes.length ? (
-            <Row gap={6} wrap>{p.likes.map((l) => <Chip key={l.name} label={l.name} locked={l.locked} />)}</Row>
-          ) : <Empty title="好きなものがまだ入っていません" text="「＋ 追加」から入れられます。" />}
-        </Card>
-        <Note>鍵をかけたものは自分だけに見えます。鍵は「編集」でかけられます。</Note>
-      </Block>
-    </>
+  const hobbies = (
+    <Block title="趣味" right={<MiniButton label="＋ 追加" onPress={() => setAdding('hobbies')} />}>
+      <Card>
+        {p.hobbies.length ? p.hobbies.map((h, i) => (
+          <View key={h.name}>
+            {i > 0 ? <Divider /> : null}
+            <HobbyRow name={h.name} heat={h.heat} onHeat={(v) => setHobbyHeat(i, v)} />
+          </View>
+        )) : <Empty title="趣味がまだ入っていません" text="「＋ 追加」から入れられます。" />}
+      </Card>
+    </Block>
   );
-
-  // 「IDで探す」は見出しのすぐ右に置く。広い画面では見出しを左の列に入れ、ゲームの列を見出しと同じ高さから始める
-  const appBar = <AppBar title="プロフィール" subtitle="あなたの「好き」を、仲間へのきっかけに。" rightNextToTitle
-    right={<MiniButton label="IDで探す" onPress={() => go('search-id')} />} />;
+  const likes = (
+    <Block title="好きなもの" right={<MiniButton label="＋ 追加" onPress={() => setAdding('likes')} />}>
+      <Card pad>
+        {p.likes.length ? (
+          <Row gap={6} wrap>{p.likes.map((l) => <Chip key={l.name} label={l.name} locked={l.locked} />)}</Row>
+        ) : <Empty title="好きなものがまだ入っていません" text="「＋ 追加」から入れられます。" />}
+      </Card>
+      <Note>鍵をかけたものは自分だけに見えます。鍵は「編集」でかけられます。</Note>
+    </Block>
+  );
 
   return (
     <Stack>
-      {wide ? null : appBar}
-      <Cols
-        left={<>
-          {wide ? appBar : null}
-          <WhoCard p={p} right={<SubButton label="編集" onPress={() => update((d) => { d.draft = JSON.parse(JSON.stringify(d.me)); d.saveError = false; })} />}>
+      <AppBar title="プロフィール" rightNextToTitle right={<MiniButton label="IDで探す" onPress={() => go('search-id')} />} />
+      <Card pad>
+        <View style={{ flexDirection: wide ? 'row' : 'column', gap: s(wide ? 24 : 10) }}>
+          <Stack gap={10} style={{ flex: wide ? 1 : undefined, minWidth: 0 }}>
+            <Row gap={12}>
+              <Avatar p={p} />
+              <Txt size={design.id === 'play' ? 22 : 24} weight="display" style={{ flex: 1, minWidth: 0 }}>{p.nickname}</Txt>
+              <MiniButton label="編集" onPress={() => update((d) => { d.draft = JSON.parse(JSON.stringify(d.me)); d.saveError = false; })} />
+            </Row>
             <Row gap={6} wrap>
               <Note>アプリID</Note>
               <Txt size={14} weight="bold">{p.appId}</Txt>
+              <View style={{ flex: 1 }} />
               <MiniButton label="リンクをコピー" onPress={() => copy(`https://shumitomo.jp/${p.appId}`, 'プロフィールのリンクをコピーしました')} />
             </Row>
-          </WhoCard>
-          <Note>プロフィールはこの端末に保存されます。同じブラウザで再読み込みしても残ります。</Note>
-          <TimesCard times={p.times} region={p.region} />
-          {wide ? hobbiesAndLikes : null}
-        </>}
-        right={<>
-          {/* 見出し（AppBar）と同じだけ上を空け、「ゲーム」の行を「プロフィール」の行にそろえる */}
-          {wide ? <View style={{ height: s(gamesTop(design.id)) }} /> : null}
-          <Block title="ゲーム" count={p.games.length} right={<MiniButton label="＋ 追加" onPress={() => setAdding('games')} />}>
-            {p.games.length ? p.games.map((g, i) => (
-              <GameCard key={g.tag} g={g} showSteam={steamProfileVisible(settings)}
-                onRecruit={() => { update((d) => { d.role = 'rec'; }); go('create', { game: g.tag }); }}
-                onSkill={(v) => setGame(i, 'skill', v)}
-                onHeat={(v) => setGame(i, 'heat', v)} />
-            )) : (
-              <Card><Empty title="ゲームがまだ入っていません" text="ゲームを入れると、合う募集が見つかりやすくなります。" button={{ label: '＋ ゲームを追加', onPress: () => setAdding('games') }} /></Card>
-            )}
-          </Block>
-          {/* スマホでは、ゲームの下に続ける（画面の並び：ゲーム → 趣味 → 好きなもの） */}
-          {wide ? null : hobbiesAndLikes}
-          <RightsNote onOpen={open} />
-        </>}
-      />
+          </Stack>
+          <View style={{ backgroundColor: C.line, ...(wide ? { width: 1 } : { height: 1 }) }} />
+          <Stack gap={10} style={{ flex: wide ? 1 : undefined, minWidth: 0, justifyContent: 'center' }}>
+            <TimesCard times={p.times} region={p.region} embedded />
+            <Note>変更はこの端末に保存されます</Note>
+          </Stack>
+        </View>
+      </Card>
+      <Block title="ゲーム" count={p.games.length} right={<MiniButton label="＋ 追加" onPress={() => setAdding('games')} />}>
+        {p.games.length ? <Grid columns={wide ? (width >= 1100 ? 3 : 2) : 1}>{p.games.map((g, i) => (
+          <GameCard key={g.tag} g={g} showSteam={steamProfileVisible(settings)}
+            onRecruit={() => { update((d) => { d.role = 'rec'; }); go('create', { game: g.tag }); }}
+            onSkill={(v) => setGame(i, 'skill', v)}
+            onHeat={(v) => setGame(i, 'heat', v)} />
+        ))}</Grid> : (
+          <Card><Empty title="ゲームがまだ入っていません" text="ゲームを入れると、合う募集が見つかりやすくなります。" button={{ label: '＋ ゲームを追加', onPress: () => setAdding('games') }} /></Card>
+        )}
+      </Block>
+      <Cols even left={hobbies} right={likes} />
+      <RightsNote onOpen={open} />
       <AddModal kind={adding} onClose={() => setAdding(null)} />
     </Stack>
   );
@@ -116,31 +108,32 @@ function ProfileView() {
 function WhoCard({ p, right, children }: { p: Profile | Person; right?: React.ReactNode; children?: React.ReactNode }) {
   const { design } = useLayout();
   return <Card pad>
-    <Stack gap={16}>
+    <Stack gap={10}>
       <Row gap={14}>
         <Avatar p={p} />
         <Txt size={design.id === 'play' ? 22 : 24} weight="display" style={{ flex: 1 }}>{p.nickname}</Txt>
         {right}
       </Row>
       <View style={{ height: 1, backgroundColor: C.line }} />
-      <Stack gap={6}>{children}</Stack>
+      <Stack gap={10}>{children}</Stack>
     </Stack>
   </Card>;
 }
 
-function TimesCard({ times, region }: { times: { start: string; end: string }; region: string }) {
+function TimesCard({ times, region, embedded }: { times: { start: string; end: string }; region: string; embedded?: boolean }) {
   const { s } = useLayout();
-  return <Card pad><Row gap={16}>
-    <Stack gap={5} style={{ flex: 1 }}>
-      <Row gap={5}><Feather name="clock" size={s(13)} color={C.accent} /><Txt size={11} color={C.muted}>遊ぶ時間帯</Txt></Row>
-      <Txt size={13} weight="bold">{times.start}〜{times.end}</Txt>
+  const content = <Row gap={10}>
+    <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
+      <Row gap={4}><Feather name="clock" size={s(13)} color={C.accent} /><Txt size={12} color={C.muted}>遊ぶ時間帯</Txt></Row>
+      <Txt size={14} weight="bold">{times.start}〜{times.end}</Txt>
     </Stack>
     <View style={{ height: s(36), width: 1, backgroundColor: C.line }} />
-    <Stack gap={5} style={{ flex: 1 }}>
-      <Row gap={5}><Feather name="map-pin" size={s(13)} color={C.muted} /><Txt size={11} color={C.muted}>住んでいる地方</Txt></Row>
-      <Txt size={13} weight="bold">{region}</Txt>
+    <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
+      <Row gap={4}><Feather name="map-pin" size={s(13)} color={C.muted} /><Txt size={12} color={C.muted}>地方</Txt></Row>
+      <Txt size={14} weight="bold">{region}</Txt>
     </Stack>
-  </Row></Card>;
+  </Row>;
+  return embedded ? content : <Card pad>{content}</Card>;
 }
 
 // ゲーム1つ。上段が熱量、下段が実力。自分のゲームなら、どちらもその場で変えられる
@@ -150,9 +143,9 @@ function GameCard({ g, onRecruit, onSkill, onHeat, showSteam = true }: {
   const { s } = useLayout();
   return (
     <Card pad>
-      <Stack gap={10}>
+      <Stack gap={6}>
         <Row gap={10}>
-          <Art tag={g.tag} />
+          <Art tag={g.tag} size={40} />
           <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
             <Txt size={16} weight="bold">{GAMES[g.tag].name}</Txt>
             <Note>{g.platform}</Note>
@@ -164,12 +157,12 @@ function GameCard({ g, onRecruit, onSkill, onHeat, showSteam = true }: {
           ) : null}
         </Row>
         {showSteam && g.steam ? <Note>Steam · {g.steam.hours}時間プレイ / {g.steam.updated}に取得</Note> : null}
-        <View style={{ gap: s(8), paddingTop: s(8) }}>
-          <Row><Txt size={12} weight="bold" color={C.muted} style={{ width: s(40) }}>熱量</Txt><HeatTag value={g.heat} /></Row>
+        <View style={{ paddingTop: s(4) }}>
+          <Row style={{ justifyContent: 'space-between' }}><Txt size={13} weight="bold">熱量</Txt><HeatTag value={g.heat} /></Row>
           <HeatSlider value={g.heat} onChange={onHeat} />
         </View>
-        <View style={{ gap: s(8), paddingTop: s(8) }}>
-          <Row><Txt size={12} weight="bold" color={C.muted} style={{ width: s(40) }}>実力</Txt>
+        <View>
+          <Row><Txt size={13} weight="bold" style={{ flex: 1 }}>実力</Txt>
             <Txt size={14} weight="bold">{g.skill}</Txt><Note>/ 9</Note></Row>
           <SkillSlider value={g.skill} onChange={onSkill} />
         </View>
@@ -192,7 +185,7 @@ function HobbyRow({ name, heat, onHeat }: { name: string; heat: number; onHeat?:
 
 function ProfileEdit() {
   const { s: st, update, editProfile, toast } = useStore();
-  const { s } = useLayout();
+  const { s, wide } = useLayout();
   const p = st.draft!;
   const [adding, setAdding] = useState<AddKind | null>(null);
   const set = (fn: (d: NonNullable<typeof st.draft>) => void) => update((d) => { if (d.draft) fn(d.draft); });
@@ -212,9 +205,9 @@ function ProfileEdit() {
   };
 
   const formRow = (label: string, body: React.ReactNode) => (
-    <Row gap={8} style={{ alignItems: 'flex-start', padding: s(12) }}>
-      <Txt size={12} weight="bold" color={C.muted} style={{ width: s(80), paddingTop: s(8) }}>{label}</Txt>
-      <Stack gap={6} style={{ flex: 1, minWidth: 0 }}>{body}</Stack>
+    <Row gap={wide ? 8 : 6} style={{ flexDirection: wide ? 'row' : 'column', alignItems: 'flex-start', padding: s(12) }}>
+      <Txt size={13} weight="bold" color={C.muted} style={{ width: wide ? s(80) : undefined, paddingTop: wide ? s(8) : 0 }}>{label}</Txt>
+      <Stack gap={6} style={{ flex: wide ? 1 : undefined, width: wide ? undefined : '100%', minWidth: 0 }}>{body}</Stack>
     </Row>
   );
 

@@ -62,14 +62,14 @@ export function ConnectionsScreen() {
             return (
               <View key={n.id}>
                 {i > 0 ? <Divider /> : null}
-                <Row gap={10} style={{ padding: s(12) }}>
+                <Row gap={10} style={{ padding: s(14), alignItems: 'flex-start' }}>
                   <Art tag={n.game} size={40} />
-                  <Stack gap={2} style={{ flex: 1 }}>
+                  <Stack gap={6} style={{ flex: 1, minWidth: 0 }}>
                     <Txt size={14} weight="bold">{n.side === 'par' ? `${p.nickname}の募集に参加しました` : `${p.nickname}があなたの募集に参加しました`}</Txt>
                     <Note>{`${GAMES[n.game].name} ・ ${n.when}`}</Note>
+                    <Row><Chip label={JOIN_RESULT[n.result]} /></Row>
                     <TextButton label="プロフィールを見る" onPress={() => go('person', { id: n.from })} />
                   </Stack>
-                  <Chip label={JOIN_RESULT[n.result]} />
                 </Row>
               </View>
             );
@@ -78,22 +78,24 @@ export function ConnectionsScreen() {
           return (
             <View key={i}>
               {i > 0 ? <Divider /> : null}
-              <Row gap={10} style={{ padding: s(12) }}>
-                <Art tag={n.game} size={40} />
-                <Stack gap={2} style={{ flex: 1 }}>
-                  <Txt size={14} weight="bold">{recruit ? `${p.nickname}が募集を出しました` : `${p.nickname}の${GAMES[n.game].name}`}</Txt>
-                  <Note>{recruit ? `${GAMES[n.game].name} ・ ${n.text}` : n.text}</Note>
-                  {recruit ? (
-                    // 参加する人の画面（募集一覧 → 成立）への入口
-                    <TextButton label="募集一覧を見る" onPress={() => { update((d) => { d.role = 'par'; }); go('list'); }} />
-                  ) : null}
-                </Stack>
+              <Stack gap={10} style={{ padding: s(14) }}>
+                <Row gap={10} style={{ alignItems: 'flex-start' }}>
+                  <Art tag={n.game} size={32} />
+                  <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
+                    <Txt size={14} weight="bold">{recruit ? `${p.nickname}が募集を出しました` : `${p.nickname}の${GAMES[n.game].name}`}</Txt>
+                    <Note>{recruit ? `${GAMES[n.game].name} ・ ${n.text}` : n.text}</Note>
+                    {recruit ? (
+                      // 参加する人の画面（募集一覧 → 成立）への入口
+                      <TextButton label="募集一覧を見る" onPress={() => { update((d) => { d.role = 'par'; }); go('list'); }} />
+                    ) : null}
+                  </Stack>
+                </Row>
                 {/* 相手の募集の知らせから参加希望を送れる（app-19）、熱量の知らせからそのゲームで誘える（app-21） */}
-                <PillButton
+                <Row style={{ justifyContent: 'flex-end' }}><PillButton
                   label={n.done ? (recruit ? '参加リクエスト済み' : '誘いました') : (recruit ? '参加希望を送る' : 'このゲームで誘う')}
                   disabled={n.done}
-                  onPress={() => { update((d) => { const x = d.conn.notices[i]; if (x.kind !== 'joined') x.done = true; }); toast(recruit ? '参加希望を送りました' : '誘いました'); }} />
-              </Row>
+                  onPress={() => { update((d) => { const x = d.conn.notices[i]; if (x.kind !== 'joined') x.done = true; }); toast(recruit ? '参加希望を送りました' : '誘いました'); }} /></Row>
+              </Stack>
             </View>
           );
         }) : <Empty title="知らせはまだありません" text="フレンドが募集を出したときや、募集に参加したときに、ここに届きます。" />}
@@ -124,7 +126,7 @@ export function ConnectionsScreen() {
                 {p.hobbies.filter((h) => me.hobbies.some((m) => m.name === h.name)).map((h) => <Chip key={h.name} common label={h.name} />)}
                 {p.likes.filter((l) => !l.locked && me.likes.some((m) => m.name === l.name)).map((l) => <Chip key={l.name} common label={l.name} />)}
               </Row>
-              <Row style={{ justifyContent: 'space-between' }}>
+              <Row wrap style={{ justifyContent: 'space-between' }}>
                 {/* フレンドは、いつでも外せる（connections-7） */}
                 <TextButton danger label="フレンドを外す" onPress={async () => {
                   if (!(await confirm(`${p.nickname}さんをフレンドから外しますか？`))) return;
