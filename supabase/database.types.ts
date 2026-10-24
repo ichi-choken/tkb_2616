@@ -83,6 +83,158 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"integration_api_budgets": {
+                  Row: {
+                    "next_at": string,"service": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "next_at"?: string,"service": string
+                  }
+                  Update: {
+                    "next_at"?: string,"service"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"integration_api_leases": {
+                  Row: {
+                    "expires_at": string,"id": string,"service": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "expires_at": string,"id"?: string,"service": string
+                  }
+                  Update: {
+                    "expires_at"?: string,"id"?: string,"service"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "integration_api_leases_service_fkey"
+      columns: ["service"]
+isOneToOne: false
+      referencedRelation: "integration_api_budgets"
+      referencedColumns: ["service"]
+    }
+                  ]
+                },"integration_attempts": {
+                  Row: {
+                    "consumed_at": string | null,"created_at": string,"expires_at": string,"generation": string,"provider": string,"return_to": string,"session_id": string,"state_hash": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "consumed_at"?: string | null,"created_at": string,"expires_at": string,"generation": string,"provider": string,"return_to": string,"session_id": string,"state_hash": string,"user_id": string
+                  }
+                  Update: {
+                    "consumed_at"?: string | null,"created_at"?: string,"expires_at"?: string,"generation"?: string,"provider"?: string,"return_to"?: string,"session_id"?: string,"state_hash"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"integration_link_guards": {
+                  Row: {
+                    "generation": string,"provider": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "generation"?: string,"provider": string,"user_id": string
+                  }
+                  Update: {
+                    "generation"?: string,"provider"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"integration_links": {
+                  Row: {
+                    "external_id": string,"id": string,"lease_until": string | null,"next_attempt_at": string | null,"provider": string,"revision": string,"snapshot": Json | null,"token_ciphertext": string | null,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "external_id": string,"id"?: string,"lease_until"?: string | null,"next_attempt_at"?: string | null,"provider": string,"revision"?: string,"snapshot"?: Json | null,"token_ciphertext"?: string | null,"user_id": string
+                  }
+                  Update: {
+                    "external_id"?: string,"id"?: string,"lease_until"?: string | null,"next_attempt_at"?: string | null,"provider"?: string,"revision"?: string,"snapshot"?: Json | null,"token_ciphertext"?: string | null,"user_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"integration_login_attempts": {
+                  Row: {
+                    "expires_at": string,"payload": NonNullable<Json>,"state_hash": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "expires_at": string,"payload": NonNullable<Json>,"state_hash": string
+                  }
+                  Update: {
+                    "expires_at"?: string,"payload"?: NonNullable<Json>,"state_hash"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"integration_login_codes": {
+                  Row: {
+                    "challenge": string,"code_hash": string,"expires_at": string,"redirect_uri": string,"steam_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "challenge": string,"code_hash": string,"expires_at": string,"redirect_uri": string,"steam_id": string
+                  }
+                  Update: {
+                    "challenge"?: string,"code_hash"?: string,"expires_at"?: string,"redirect_uri"?: string,"steam_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"integration_login_tokens": {
+                  Row: {
+                    "expires_at": string,"steam_id": string,"token_hash": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "expires_at": string,"steam_id": string,"token_hash": string
+                  }
+                  Update: {
+                    "expires_at"?: string,"steam_id"?: string,"token_hash"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"integration_push_deliveries": {
+                  Row: {
+                    "accepted_at": string | null,"attempts": number,"device_id": string,"event": NonNullable<Json>,"event_id": string,"lease_until": string | null,"next_attempt_at": string,"revision": string,"status": string,"ticket_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "accepted_at"?: string | null,"attempts"?: number,"device_id": string,"event": NonNullable<Json>,"event_id": string,"lease_until"?: string | null,"next_attempt_at"?: string,"revision"?: string,"status"?: string,"ticket_id"?: string | null
+                  }
+                  Update: {
+                    "accepted_at"?: string | null,"attempts"?: number,"device_id"?: string,"event"?: NonNullable<Json>,"event_id"?: string,"lease_until"?: string | null,"next_attempt_at"?: string,"revision"?: string,"status"?: string,"ticket_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "integration_push_deliveries_device_id_fkey"
+      columns: ["device_id"]
+isOneToOne: false
+      referencedRelation: "integration_push_devices"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"integration_push_devices": {
+                  Row: {
+                    "id": string,"session_id": string,"token_ciphertext": string,"token_hash": string,"updated_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "id"?: string,"session_id": string,"token_ciphertext": string,"token_hash": string,"updated_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "id"?: string,"session_id"?: string,"token_ciphertext"?: string,"token_hash"?: string,"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"notifications": {
                   Row: {
                     "application_id": string | null,"created_at": string,"id": number,"kind": Database["public"]['Enums']["notification_kind"],"read_at": string | null,"recruitment_id": string | null,"user_id": string
@@ -189,6 +341,24 @@ isOneToOne: false
                            },
 "change_recruitment":
 { Args: { "p_action": string,"p_op_id": string,"p_recruitment_id": string }; Returns: Json
+                           },
+"integration_begin_link":
+{ Args: { "p_created": string,"p_expires": string,"p_provider": string,"p_return": string,"p_session": string,"p_state": string,"p_user": string }; Returns: undefined
+                           },
+"integration_claim_igdb":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"integration_finish_link":
+{ Args: { "p_ciphertext": string,"p_external": string,"p_provider": string,"p_session": string,"p_state": string,"p_user": string }; Returns: boolean
+                           },
+"integration_login_consume_attempt":
+{ Args: { "p_hash": string,"p_now": string }; Returns: Json
+                           },
+"integration_login_consume_code":
+{ Args: { "p_challenge": string,"p_hash": string,"p_now": string,"p_redirect": string }; Returns: Json
+                           },
+"integration_unlink":
+{ Args: { "p_provider": string,"p_user": string }; Returns: undefined
                            },
 "matched_count":
 { Args: { "r": Omit<Database["public"]['Tables']["recruitments"]['Row'], Database["public"]['Tables']["recruitments"]['ComputedFields']> }; Returns: number

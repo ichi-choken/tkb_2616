@@ -9,6 +9,6 @@ const existing = config.resolver.blockList;
 config.resolver.blockList = [
   ...(Array.isArray(existing) ? existing : existing ? [existing] : []),
   /[/\\]\.env(?:\.[^/\\]*)?$/,
-  /[/\\]supabase[/\\](?:functions|proposals|migrations)[/\\]/,
+  /[/\\]supabase[/\\](?:functions|migrations)[/\\]/,
 ];
 module.exports = config;

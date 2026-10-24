@@ -88,7 +88,7 @@ npm run doctor:config
 - 統合版で49テスト、型検査、Edge型検査、Web/iOS/Androidバンドル出力、PRのGitHub CIが成功。iOS/Androidは署名済み実機ビルドではない。
 - ローカルブラウザで募集公開→承認→編集、成立維持、プロフィール同時保存（実力5→7）、別ゲーム選択時の既存募集確認、設定画面を確認した。
 - `/dev/auth`で4方式のボタンと未設定表示、`/auth/callback`で未設定時のエラーを確認した。これはログイン成功の確認ではない。
-- `tests/merged-database.test.ts`は隔離PGliteに②の実マイグレーションと③のSQL案を読み込み、基本動線とRLS・連携解除後の成立維持を確認。実SupabaseのAuth/Realtimeや実DBの結合確認ではない。
+- `tests/merged-database.test.ts`は隔離PGliteに全マイグレーション（③の表も②が取り込み済み）を読み込み、基本動線とRLS・連携解除後の成立維持を確認。実SupabaseのAuth/Realtimeや実DBの結合確認ではない。
 - 開発確認中にローカル専用.envがエラー画面へ出たため、未接続の検証用キーを再生成し、Metroの配信除外を追加した。新しい値がWeb/native成果物や対象HTTP応答に含まれないことを確認済み。古いエラー出力を転載しない。
 - 既存依存のnode-forge/zodに関する警告は別途残る。現在の状態は再調査が必要。無条件の`audit fix --force`はしない。
 
@@ -108,7 +108,7 @@ npm run doctor:config
 
 ## 8. ③に残っている作業と依存
 
-- ②が指定するチーム用の開発・本番環境、公開用キー、追加SQL取り込みの調整。
+- ②が指定するチーム用の開発・本番環境、公開用キー。追加SQLは②が `supabase/migrations/20261024063000〜063300` に取り込み済み。
 - Discord/Google/AppleのOAuth設定、Steam custom provider設定、Steam/Discord/IGDBの実API接続。提供元の設定・権限確認は未完了。
 - Steam更新ワーカーの定期起動。コードがあってもジョブは稼働していない。1分ごとの起動で永続化した次回処理時刻を判定する設計。
 - 通知方式 **Q-30未決**。Pushは`EXPO_PUBLIC_ENABLE_PUSH=false`、`NOTIFICATION_TRANSPORT=disabled`。決定後に②のイベント、端末設定、配送・receipt再確認を接続。

@@ -6,7 +6,7 @@ import { PGlite } from '@electric-sql/pglite';
 
 // Isolated PostgreSQL only. Never connects to a personal or team Supabase project.
 // Models Supabase's Auth helper/default grants; does not simulate HTTP/Realtime delivery.
-test('Main recruitment schema and integration proposals coexist without changing matches or RLS', async () => {
+test('Recruitment and integration migrations coexist without changing matches or RLS', async () => {
   const db = new PGlite();
   const owner = randomUUID(), applicant = randomUUID(), stranger = randomUUID();
   const asUser = async (id: string | null) => {
@@ -26,9 +26,6 @@ test('Main recruitment schema and integration proposals coexist without changing
     const migrations = await import('node:fs/promises').then(fs => fs.readdir(new URL('../supabase/migrations/', import.meta.url)));
     for (const file of migrations.filter(f => f.endsWith('.sql')).sort()) {
       await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8'));
-    }
-    for (const file of ['auth-integrations', 'steam-login', 'igdb-gateway', 'notification-delivery']) {
-      await db.exec(await readFile(new URL(`../supabase/proposals/${file}.sql`, import.meta.url), 'utf8'));
     }
     await db.exec(await readFile(new URL('../supabase/seed.sql', import.meta.url), 'utf8'));
     await db.query('insert into auth.users(id) values ($1),($2),($3)', [owner, applicant, stranger]);

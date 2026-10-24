@@ -38,17 +38,17 @@
 
 ## ② DB・業務処理担当AIへの指示
 
-本ブランチからクラウドDBへ適用したSQLはありません。以下は②が既存マイグレーションと調整する追加案です。
+③の表と関数は、②がマイグレーションに取り込んだ（中身は追加案のまま）。クラウドDBへの適用は、②のチーム環境の手順（`supabase/README.md`）に従う。
 
-| SQL案 | 担当するデータ |
+| マイグレーション | 担当するデータ |
 | --- | --- |
-| `supabase/proposals/auth-integrations.sql` | 任意連携、認証試行、解除世代、取得スナップショット |
-| `supabase/proposals/steam-login.sql` | Steamログイン時の短命なstate・code・userinfo用tokenのハッシュ |
-| `supabase/proposals/igdb-gateway.sql` | IGDBの共有API呼び出し制限 |
-| `supabase/proposals/notification-delivery.sql` | 端末・通知の配送記録 |
+| `supabase/migrations/20261024063000_integration_links.sql` | 任意連携、認証試行、解除世代、取得スナップショット |
+| `supabase/migrations/20261024063100_steam_login.sql` | Steamログイン時の短命なstate・code・userinfo用tokenのハッシュ |
+| `supabase/migrations/20261024063200_igdb_gateway.sql` | IGDBの共有API呼び出し制限 |
+| `supabase/migrations/20261024063300_push_delivery.sql` | 端末・通知の配送記録 |
 
 - 利用者IDは検証済みの `auth.users.id` を使う。`profiles.id` と1対1である現在の②の設計に合わせる。本文のuserId、ユーザーが編集できるmetadataを権限判定に使わない。
-- 追加案のテーブル名は `integration_*`。現在の②の `profiles` / `games` / `recruitments` / `applications` / `notifications` を作り直さない。
+- ③のテーブル名は `integration_*`。現在の②の `profiles` / `games` / `recruitments` / `applications` / `notifications` を作り直さない。
 - Steamの任意連携解除は `integration_unlink`。取得情報・暗号化トークン・認証試行を削除し、進行中の結果を無効化する。プロフィールの手入力や募集・成立の記録を削除しない。AuthのSteamログインidentityをこの関数で削除しない。
 - 保存するDiscordのアカウント情報はIDのみ。名前・アイコン・メール・作成時期をスナップショットへ足さない。認証の維持に使う暗号化トークンと処理時刻は別扱い。
 - ログイン用の一時テーブルはクライアントからアクセスさせない。codeはPKCE検証に成功した1回だけ消費する。無効な検証値で正しいcodeを消費させない。
@@ -56,7 +56,7 @@
 - ワーカーは `POST /functions/v1/integration-sync`、ヘッダーは `x-integration-worker-key`。1回最大4件。利用者数が増えたら未処理件数と所要時間を見て起動数を調整する。外部APIのRetry-Afterを短縮しない。
 - 募集・成立・通知対象者の判断は②の関数が行う。③はそのイベントを配送する。②のアプリ内通知をPushの成功・失敗で消さない。
 - ローカルポートは②の553xxを正として統合する。旧543xx設定へ戻さない。
-- PGliteで追加案単体と、tests/merged-database.test.tsによるmainの実マイグレーションとの共存・基本動線を検証する。Supabase全体やRealtimeの実行確認ではない。実スキーマ変更時は②のローカルSupabaseで既存47件のDBテストと型生成を行う。
+- PGliteで③のマイグレーション単体（tests/integration-schema.test.ts）と、tests/merged-database.test.tsによる全マイグレーションの共存・基本動線を検証する。Supabase全体やRealtimeの実行確認ではない。実スキーマ変更時は②のローカルSupabaseで既存47件のDBテストと型生成を行う。
 
 ## ③ 認証・外部連携担当AIへの指示
 
@@ -112,7 +112,7 @@ npm run doctor:config
 
 - `npm run check` は型・テスト・Edge型・Web出力を検証する。外部APIは差し替え、SQLはローカルのPGliteで検証する。個人Supabaseは使わない。
 - 実アカウントの4方式ログイン、実API、実通知、クラウド公開は未確認。設定後にキャンセル、二重callback、無効なstate、解除中の更新、古い通知タップを含めて確認する。
-- 画面・DBコードの配置統合は完了済みだが、画面はデモ状態管理のまま。追加SQL取り込み・チーム接続先設定後に、①③を兼任するAIと②で実環境の動線を結合検証する。
+- 画面・DBコードの配置統合は完了済みだが、画面はデモ状態管理のまま。チーム接続先設定後に、①③を兼任するAIと②で実環境の動線を結合検証する。
 - 設定不足は `doctor:config` が項目名だけを表示する。プロバイダーの管理画面の設定完了は別に確認する。
 - 既知のExpo CLIの依存警告（node-forge、zod）は前回から残る。SDKを無条件に下げたりmajor版を強制置換しない。公式の修正版が出たら範囲を確認して更新する。
 
@@ -124,4 +124,4 @@ npm run doctor:config
 - Webは既存画面と同じSPA。SSRへ戻す場合はフォント・hash初期状態・外部ストアのhydration対応を先に行う。
 - rootのMetroはrootのnode_modulesへ解決を統一する。app/に単独デモの依存を入れてもReactを二重ロードしない。サーバー用.envとsupabaseの実装・SQLは配信対象外。
 - ローカルブラウザで公開→承認→編集、プロフィールへの同時保存、別ゲームからの再公開防止、設定画面、認証診断、設定未入力時のcallbackを確認した。募集画面はデモ状態管理のまま。
-- 実OAuth、実API、Push、チームDB、デプロイは未接続・未検証。個人Supabaseは使用しない。追加SQL案を勝手にmigrationsへ移さない。
+- 実OAuth、実API、Push、チームDB、デプロイは未接続・未検証。個人Supabaseは使用しない。③の表を変えるときは、既存のマイグレーションを書き換えず、②と合わせて新しいマイグレーションを足す。

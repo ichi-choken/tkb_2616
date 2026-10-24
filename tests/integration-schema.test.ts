@@ -7,7 +7,9 @@ const userA = '00000000-0000-4000-8000-000000000001';
 const userB = '00000000-0000-4000-8000-000000000002';
 const session = '00000000-0000-4000-8000-000000000003';
 
-test('Draft SQL: secrets are inaccessible to app roles, attempts are one-time and unlink wins against stale writes', async () => {
+const migration = (name: string) => readFile(new URL(`../supabase/migrations/${name}.sql`, import.meta.url), 'utf8');
+
+test('Integration SQL: secrets are inaccessible to app roles, attempts are one-time and unlink wins against stale writes', async () => {
   const db = new PGlite();
   try {
     await db.exec(`
@@ -20,7 +22,7 @@ test('Draft SQL: secrets are inaccessible to app roles, attempts are one-time an
       create table public.profiles (id uuid primary key, nickname text);
       insert into public.profiles values ('${userA}', 'untouched');
     `);
-    await db.exec(await readFile(new URL('../supabase/proposals/auth-integrations.sql', import.meta.url), 'utf8'));
+    await db.exec(await migration('20261024063000_integration_links'));
     assert.equal((await db.query<{ nickname: string }>('select nickname from public.profiles')).rows[0]?.nickname, 'untouched');
 
     for (const role of ['anon', 'authenticated']) {
@@ -61,13 +63,13 @@ test('Draft SQL: secrets are inaccessible to app roles, attempts are one-time an
   } finally { await db.close(); }
 });
 
-test('Draft SQL: IGDB shared rate budget and push delivery deduplication are server-only', async () => {
+test('Integration SQL: IGDB shared rate budget and push delivery deduplication are server-only', async () => {
   const db = new PGlite();
   try {
     await db.exec(`create role anon; create role authenticated; create role service_role bypassrls;
       create schema auth; create table auth.users(id uuid primary key); insert into auth.users values ('${userA}'),('${userB}');`);
-    await db.exec(await readFile(new URL('../supabase/proposals/igdb-gateway.sql', import.meta.url), 'utf8'));
-    await db.exec(await readFile(new URL('../supabase/proposals/notification-delivery.sql', import.meta.url), 'utf8'));
+    await db.exec(await migration('20261024063200_igdb_gateway'));
+    await db.exec(await migration('20261024063300_push_delivery'));
     for (const role of ['anon', 'authenticated']) {
       await db.exec(`set role ${role}`);
       await assert.rejects(db.query('select public.integration_claim_igdb()'));
@@ -103,7 +105,7 @@ test('Steam login SQL: only server roles can read artifacts; invalid proof does 
   const db = new PGlite();
   try {
     await db.exec('create role anon; create role authenticated; create role service_role bypassrls;');
-    await db.exec(await readFile(new URL('../supabase/proposals/steam-login.sql', import.meta.url), 'utf8'));
+    await db.exec(await migration('20261024063100_steam_login'));
     for (const role of ['anon', 'authenticated']) {
       await db.exec(`set role ${role}`);
       for (const table of ['integration_login_attempts', 'integration_login_codes', 'integration_login_tokens']) await assert.rejects(db.query(`select * from public.${table}`));
