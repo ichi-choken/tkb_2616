@@ -1,5 +1,5 @@
 // Shumitomo のフロント（デモ）。Expo（React Native）と TypeScript で、スマホのアプリとウェブを1つのコードで作る
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, type ComponentType } from 'react';
 import { Platform, Pressable, ScrollView, View, type ScrollViewInstance } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +19,10 @@ import { ConnectionsScreen } from './src/screens/Connections';
 import { SettingsScreen, resetSettings } from './src/screens/Settings';
 
 export default function App() {
+  return <ShumitomoApp />;
+}
+
+export function ShumitomoApp({ settingsScreen = SettingsScreen }: { settingsScreen?: ComponentType }) {
   const [loaded] = useFonts({
     DelaGothicOne_400Regular,
     ZenKakuGothicNew_400Regular,
@@ -29,14 +33,14 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <StoreProvider>
-        <Shell />
+        <Shell settingsScreen={settingsScreen} />
         <StatusBar style="dark" />
       </StoreProvider>
     </SafeAreaProvider>
   );
 }
 
-function Shell() {
+function Shell({ settingsScreen }: { settingsScreen: ComponentType }) {
   const { s: st } = useStore();
   const { s, wide } = useLayout();
   const route = resolveRoute(st);
@@ -51,7 +55,7 @@ function Shell() {
       <DemoBar />
       <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: s(32) }} keyboardShouldPersistTaps="handled">
         <View style={{ width: '100%', maxWidth: wide ? 1600 : undefined, alignSelf: 'center', paddingHorizontal: s(wide ? 28 : 16) }}>
-          <Screen />
+          <Screen settingsScreen={settingsScreen} />
         </View>
       </ScrollView>
       <TabBar current={ROUTE_TAB[route.name]} />
@@ -60,7 +64,7 @@ function Shell() {
   );
 }
 
-function Screen() {
+function Screen({ settingsScreen: Settings }: { settingsScreen: ComponentType }) {
   const { s: st } = useStore();
   const { name, params } = resolveRoute(st);
   switch (name) {
@@ -72,7 +76,7 @@ function Screen() {
     case 'list': return <ListScreen />;
     case 'matched': return <MatchedScreen />;
     case 'connections': return <ConnectionsScreen />;
-    case 'settings': return <SettingsScreen />;
+    case 'settings': return <Settings />;
   }
 }
 

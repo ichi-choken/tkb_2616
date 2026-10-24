@@ -34,7 +34,7 @@
 3. `lastSuccessAt` は成功した時刻。取得を試した時刻ではない。最終更新日時と相対表示を出す。7日を超えたら「7日以上前」、取得前は「まだ取得できていません」。実測0分と未取得を区別する。
 4. Googleの既知のアプリ内ブラウザでは `externalBrowserMessage` の案内を表示し、外部ブラウザへ進む導線を用意する。
 5. Webの `/auth/callback` と `/auth/link-callback`、ネイティブの同名deep linkを③の処理へ接続する。戻り先のコード交換を独自に二重実装しない。
-6. app/の既存ナビゲーションを維持する。認証callbackはsrc/app/。公開先は/auth/callbackと/auth/link-callbackをindex.htmlへ戻すSPA設定が必要。設定画面はまだデモであり、実認証・実DBへの接続完了を意味しない。Discordのデモ文言に残る作成時期・メール認証は、実接続時に合意済みのIDのみへ修正する。
+6. app/の既存ナビゲーションを維持する。認証callbackはsrc/app/。公開先は/auth/callbackと/auth/link-callbackをindex.htmlへ戻すSPA設定が必要。root起動の設定画面は認証・連携処理へ接続済み。チーム環境での実認証・実DBの疎通は未確認。app/単独起動は明示した画面デモであり、接続済みの画面と混同しない。現在の検証結果と残作業は [引き継ぎの最新追記](next-ai-handoff.md) を読む。
 
 ## ② DB・業務処理担当AIへの指示
 

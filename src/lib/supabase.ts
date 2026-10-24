@@ -27,7 +27,11 @@ export function getSupabase(): SupabaseClient | null {
 }
 
 export function watchAuthRefresh(): () => void {
-  const supabase = getSupabase();
+  let supabase: SupabaseClient | null;
+  try { supabase = getSupabase(); } catch {
+    // Keep the app open so settings can explain an invalid connection config.
+    return () => {};
+  }
   if (!supabase || Platform.OS === 'web') return () => {};
   const update = (state: string) => {
     if (state === 'active') supabase.auth.startAutoRefresh();

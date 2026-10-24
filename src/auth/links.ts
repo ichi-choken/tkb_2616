@@ -2,8 +2,9 @@ import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 import { getSupabase } from '../lib/supabase';
 
-export type LinkProvider = 'steam' | 'discord';
 import type { LinkStatus } from '../../packages/integrations/src/link-status';
+
+export type LinkProvider = 'steam' | 'discord';
 export type { LinkStatus };
 const pending = new Map<string, Promise<void>>();
 async function request(body: Record<string, unknown>) {
@@ -27,11 +28,13 @@ export function completeAccountLink(callbackUrl: string): Promise<void> {
 }
 export async function linkAccount(provider: LinkProvider) {
   const data = await request({ action: 'start', provider, client: Platform.OS === 'web' ? 'web' : 'native' });
-  if (Platform.OS === 'web') { window.location.assign(data.authorizationUrl); return; }
+  if (Platform.OS === 'web') { window.location.assign(data.authorizationUrl); return 'redirecting' as const; }
   const result = await WebBrowser.openAuthSessionAsync(data.authorizationUrl, 'shumitomo://auth/link-callback');
   if (result.type === 'success') {
     const callback = new URL(result.url).searchParams.get('callback');
     if (!callback) throw new Error('連携の戻り先を確認できませんでした。');
     await completeAccountLink(callback);
+    return 'completed' as const;
   }
+  return 'cancelled' as const;
 }

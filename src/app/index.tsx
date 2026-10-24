@@ -1,2 +1,7 @@
-// Keep the frontend owner's complete demo and its state/navigation intact.
-export { default } from '../../app/App';
+import { ShumitomoApp } from '../../app/App';
+import { ConnectedSettingsScreen } from '../settings/ConnectedSettings';
+
+// Keep the existing demo navigation; only settings uses real Auth / integrations.
+export default function Home() {
+  return <ShumitomoApp settingsScreen={ConnectedSettingsScreen} />;
+}

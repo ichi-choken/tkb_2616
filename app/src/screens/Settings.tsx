@@ -21,7 +21,7 @@ type SteamItem = 'age' | 'level' | 'games';
 
 type Link = { linked: boolean; phase: Phase; fetch: Fetch; lastOk: string | null };
 type Settings = {
-  login: 'discord' | 'google' | null;
+  login: 'discord' | 'google' | 'steam' | 'apple' | null;
   googleStep: boolean; // アプリ内ブラウザでGoogleを選んだあと、先に「ブラウザで開く」を出している
   inApp: boolean; // （デモ）アプリ内ブラウザとして見る
   steam: Link;
@@ -31,7 +31,7 @@ type Settings = {
 
 const freshLink = (): Link => ({ linked: false, phase: 'idle', fetch: 'auto', lastOk: null });
 const fresh = (): Settings => ({
-  login: 'discord',
+  login: null,
   googleStep: false,
   inApp: false,
   steam: freshLink(),
@@ -75,6 +75,8 @@ const STEAM_GAMES: { name: string; hours: number | null }[] = [
   { name: 'Fall Guys', hours: null },
 ];
 const SERVICE_NAME: Record<Service, string> = { steam: 'Steam', discord: 'Discord' };
+const LOGIN_NAME = { discord: 'Discord', google: 'Google', steam: 'Steam', apple: 'Apple' } as const;
+const LOGIN_ICON = { discord: 'logo-discord', google: 'logo-google', steam: 'logo-steam', apple: 'logo-apple' } as const;
 
 /* ---------- 画面 ---------- */
 
@@ -139,6 +141,7 @@ export function SettingsScreen() {
   return (
     <Stack>
       <AppBar title="設定" onBack={() => go('profile')} />
+      <Note color={C.warn}>設定の画面デモです。ログイン・連携・取得値はすべて見本で、外部サービスには接続しません。</Note>
       <Cols even left={left} right={right} />
     </Stack>
   );
@@ -162,14 +165,14 @@ function BrowserCard({ onOpen }: { onOpen: () => void }) {
 function AccountBlock({ inApp, onOpenBrowser }: { inApp: boolean; onOpenBrowser: () => void }) {
   const { toast, confirm } = useStore();
   const st = useSettings();
-  const login = async (by: 'discord' | 'google') => {
+  const login = async (by: NonNullable<Settings['login']>) => {
     // アプリ内ブラウザでGoogleを選ぶと、先に「ブラウザで開く」ボタンが出る（account-12）
     if (by === 'google' && inApp && !st.googleStep) {
       set((d) => { d.googleStep = true; });
       return;
     }
     set((d) => { d.login = by; d.googleStep = false; });
-    toast(`${by === 'discord' ? 'Discord' : 'Google'}でログインしました`);
+    toast(`（デモ）${LOGIN_NAME[by]}でログインした表示にしました`);
   };
 
   return (
@@ -178,8 +181,8 @@ function AccountBlock({ inApp, onOpenBrowser }: { inApp: boolean; onOpenBrowser:
         {st.login ? (
           <Stack gap={8}>
             <Row gap={8}>
-              <Ionicons name={st.login === 'discord' ? 'logo-discord' : 'logo-google'} size={20} color={C.ink} />
-              <Txt size={15} weight="bold" style={{ flex: 1 }}>{st.login === 'discord' ? 'Discord' : 'Google'}でログイン中</Txt>
+              <Ionicons name={LOGIN_ICON[st.login]} size={20} color={C.ink} />
+              <Txt size={15} weight="bold" style={{ flex: 1 }}>（デモ）{LOGIN_NAME[st.login]}でログイン中</Txt>
               <Badge label="登録済み" tone="ok" />
             </Row>
             <Note>プロフィールとフレンドが残り、別の端末でも同じアカウントで使えます。アカウント名は誰にも見えません。</Note>
@@ -197,6 +200,8 @@ function AccountBlock({ inApp, onOpenBrowser }: { inApp: boolean; onOpenBrowser:
             <Row gap={8} wrap>
               <LoginButton icon="logo-discord" label="Discordでログイン" onPress={() => login('discord')} />
               <LoginButton icon="logo-google" label="Googleでログイン" onPress={() => login('google')} />
+              <LoginButton icon="logo-steam" label="Steamでログイン" onPress={() => login('steam')} />
+              <LoginButton icon="logo-apple" label="Appleでログイン" onPress={() => login('apple')} />
             </Row>
             {st.googleStep ? (
               <Card pad style={{ backgroundColor: C.warnBg }}>
@@ -241,7 +246,7 @@ function LinkBlock({ service, inApp, onOpenBrowser }: { service: Service; inApp:
   const start = () => upd((x) => { x.phase = 'authing'; });
   const succeed = () => {
     upd((x) => { x.linked = true; x.phase = 'idle'; x.fetch = 'auto'; x.lastOk = now(); });
-    toast(`${name}と連携しました`);
+    toast(`（デモ）${name}と連携した表示にしました`);
   };
   const cancel = () => upd((x) => { x.phase = 'idle'; }); // 元の連携を維持
   const fail = () => upd((x) => { x.phase = 'failed'; }); // 元の連携を維持
@@ -296,7 +301,7 @@ function LinkBlock({ service, inApp, onOpenBrowser }: { service: Service; inApp:
             <Stack gap={8}>
               <Note>{service === 'steam'
                 ? '連携すると、持っているゲームとプレイ時間が自動で入り、その後も自動で更新されます。アカウントの年数やSteamレベルが信頼の目安になります。'
-                : '連携すると、アカウントを作った時期と、メール認証済みかが信頼の目安になります。取るのはそれだけです。'}</Note>
+                : 'DiscordのアカウントをIDで確認します。名前・アイコン・メール・アカウントの作成時期は取得・表示しません。実名の本人確認ではありません。'}</Note>
               <Note>ログインとは別で、連携しなくても使えます。</Note>
               {inApp ? <Note color={C.warn}>アプリの中のブラウザでは連携に失敗しやすいので、先に「ブラウザで開く」を押してください。</Note> : null}
               <Row gap={8} wrap>
@@ -353,8 +358,8 @@ function Linked({ service, l }: { service: Service; l: Link }) {
   if (service === 'discord') {
     return (
       <Stack gap={10}>
-        {statusRow}
-        <Facts rows={[['アカウントを作った時期', '2019年4月'], ['メール認証', '済み']]} />
+        <Note>（デモ）アカウントのIDを確認した表示です。</Note>
+        <Facts rows={[['Discord ID（見本）', '123456789012345678']]} />
         <Note>Discordから取った情報は、求められれば消します。</Note>
       </Stack>
     );
