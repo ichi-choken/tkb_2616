@@ -223,6 +223,7 @@ function renderProfile() {
       <a class="mini-btn end" href="#/search-id">IDで探す</a>
     </header>
 
+    <div class="cols"><div class="col is-sticky">
     <section class="card who">
       ${avatar(p)}
       <div class="who-col">
@@ -232,6 +233,15 @@ function renderProfile() {
       </div>
       <button type="button" class="btn-sub" data-action="edit-profile">編集</button>
     </section>
+
+    <section class="card">
+      <dl class="kv">
+        <dt>いつも遊ぶ時間帯</dt><dd class="num">${esc(p.times.start)}〜${esc(p.times.end)}</dd>
+        <dt>住んでいる地方</dt><dd>${esc(p.region)}</dd>
+      </dl>
+    </section>
+
+    </div><div class="col">
 
     <section class="block">
       <h2>ゲーム <span class="count num">${p.games.length}</span><span class="end note">押すと、そのゲームで募集を出す</span></h2>
@@ -252,15 +262,8 @@ function renderProfile() {
         <span class="chip${l.locked ? ' is-locked' : ''}">${l.locked ? icon.lock : ''}${esc(l.name)}</span>`).join('')}</div>`
         : empty('好きなものがまだ入っていません', '「編集」から入れられます。')}</div>
     </section>
-
-    <section class="card">
-      <dl class="kv">
-        <dt>いつも遊ぶ時間帯</dt><dd class="num">${esc(p.times.start)}〜${esc(p.times.end)}</dd>
-        <dt>住んでいる地方</dt><dd>${esc(p.region)}</dd>
-      </dl>
-    </section>
-
-    ${rightsNote()}`;
+    ${rightsNote()}
+    </div></div>`;
 }
 
 function gameRowMine(g) {
@@ -288,6 +291,7 @@ function renderProfileEdit() {
   return `
     <header class="app-bar"><h1>プロフィールを編集</h1></header>
 
+    <div class="cols"><div class="col is-sticky">
     <section class="card">
       <div class="form-row"><span class="form-label">ニックネーム</span>
         <div class="form-body"><input class="field" data-bind="nickname" value="${esc(p.nickname)}" maxlength="16"></div></div>
@@ -297,7 +301,14 @@ function renderProfileEdit() {
           <span class="note">プロフィールの短いURLになります（shumitomo.jp/${esc(p.appId || 'id')}）</span>
           <span class="field-hint">ゲーム内IDやSNSの名前とは別にしておくと安心です</span>
         </div></div>
+      <div class="form-row"><span class="form-label">遊ぶ時間帯</span>
+        <div class="form-body"><div class="row">
+          <input class="field inline num" type="time" data-bind="times.start" value="${esc(p.times.start)}">〜
+          <input class="field inline num" type="time" data-bind="times.end" value="${esc(p.times.end)}"></div></div></div>
+      <div class="form-row"><span class="form-label">地方</span>
+        <div class="form-body">${sel(REGIONS, p.region, 'region')}</div></div>
     </section>
+    </div><div class="col">
 
     <section class="block"><h2>ゲーム</h2>
       <div class="card">
@@ -342,15 +353,7 @@ function renderProfileEdit() {
           <button type="button" class="btn-sub" data-action="add-like-free">追加</button></div>
       </div>
     </section>
-
-    <section class="card">
-      <div class="form-row"><span class="form-label">遊ぶ時間帯</span>
-        <div class="form-body"><div class="row">
-          <input class="field inline num" type="time" data-bind="times.start" value="${esc(p.times.start)}">〜
-          <input class="field inline num" type="time" data-bind="times.end" value="${esc(p.times.end)}"></div></div></div>
-      <div class="form-row"><span class="form-label">地方</span>
-        <div class="form-body">${sel(REGIONS, p.region, 'region')}</div></div>
-    </section>
+    </div></div>
 
     ${state.saveError ? '<p class="error">プロフィールを保存できませんでした</p>' : ''}
     <div class="save-bar">
@@ -378,6 +381,7 @@ function renderPerson(params) {
   return `
     <header class="app-bar"><a class="back" href="#/connections" aria-label="戻る">‹</a><h1>${esc(p.nickname)}</h1></header>
 
+    <div class="cols"><div class="col is-sticky">
     <section class="card who">
       ${avatar(p)}
       <div class="who-col">
@@ -399,6 +403,12 @@ function renderPerson(params) {
       </div>
     </section>` : ''}
 
+    <section class="card"><dl class="kv">
+      <dt>いつも遊ぶ時間帯</dt><dd class="num">${esc(p.times.start)}〜${esc(p.times.end)}</dd>
+      <dt>住んでいる地方</dt><dd>${esc(p.region)}</dd>
+    </dl></section>
+    </div><div class="col">
+
     <section class="block"><h2>ゲーム</h2>
       <div class="games">${p.games.map((g) => `
         <div class="game">${art(g.tag)}<div class="game-body"><h3>${esc(GAMES[g.tag].name)}</h3>
@@ -413,12 +423,8 @@ function renderPerson(params) {
       <div class="card pad"><div class="chips">${p.likes.filter((l) => !l.locked).map((l) =>
         `<span class="chip${me.likes.some((m) => m.name === l.name) ? ' is-common' : ''}">${esc(l.name)}</span>`).join('')}</div></div>
     </section>
-
-    <section class="card"><dl class="kv">
-      <dt>いつも遊ぶ時間帯</dt><dd class="num">${esc(p.times.start)}〜${esc(p.times.end)}</dd>
-      <dt>住んでいる地方</dt><dd>${esc(p.region)}</dd>
-    </dl></section>
-    ${rightsNote()}`;
+    ${rightsNote()}
+    </div></div>`;
 }
 
 // アプリIDを打つと、そのプロフィールが開く（profile-13）
@@ -454,6 +460,7 @@ function renderCreate(params) {
       <h1>${editing ? '募集を編集' : '募集を出す'}</h1>
     </header>
 
+    <div class="cols is-even"><div class="col">
     <section class="card">
       <div class="form-row"><span class="form-label">ゲーム</span>
         <div class="form-body"><div class="row">${art(f.game)}<strong>${esc(game.name)}</strong></div>
@@ -476,6 +483,7 @@ function renderCreate(params) {
         <div class="form-body"><label class="check"><input type="checkbox" data-action="toggle-save"${f.saveToProfile ? ' checked' : ''}> プロフィールにも保存</label>
           <span class="note">機種・実力・熱量を、プロフィールの${esc(game.name)}にも入れます</span></div></div>
     </section>
+    </div><div class="col is-sticky">
 
     ${editing ? `
       <section class="card">
@@ -508,7 +516,8 @@ function renderCreate(params) {
           <button type="button" class="share" data-action="publish" data-via="copy">公開してコピー</button>
         </div>
         <button type="button" class="text-btn" style="justify-self:center;margin-top:6px" data-action="publish" data-via="none">貼らずに出す</button>
-      </section>`}`;
+      </section>`}
+    </div></div>`;
 }
 
 // 招待状は普通の募集の投稿と同じ見た目で、#ゲーム名募集 が入る（recruit-8, 9）
@@ -555,6 +564,7 @@ function renderRequests() {
   return `
     <header class="app-bar"><h1>届いた参加希望</h1></header>
 
+    <div class="cols"><div class="col is-sticky">
     <section class="card">
       <div class="manage-state">${art(f.game)}
         <div class="game-body" style="flex:1"><h3>${esc(GAMES[f.game].name)}</h3>
@@ -570,6 +580,7 @@ function renderRequests() {
       </div>` : ''}
       ${r.status === 'canceled' ? '<p class="note" style="padding:0 12px 12px">開催を中止しました。部屋番号・招待リンクと参加者のゲーム内IDは表示しません。</p>' : ''}
     </section>
+    </div><div class="col">
 
     ${r.status === 'ended' ? `
       <section class="block"><h2>一緒に遊んだ人</h2>
@@ -581,7 +592,8 @@ function renderRequests() {
         <h2>参加希望 <span class="count num">${r.requests.length}</span><span class="end note">合う順</span></h2>
         ${r.requests.length ? r.requests.map((q) => requestRow(q, live)).join('')
           : `<div class="card">${empty('参加希望はまだ届いていません', '招待状をSNSに貼ると、届きやすくなります。')}</div>`}
-      </section>`}`;
+      </section>`}
+    </div></div>`;
 }
 
 // 参加希望に出るのは、名前・合う理由・信頼の目安だけ（requests-2）。断るボタンは無い（requests-5）
@@ -637,18 +649,18 @@ function renderList() {
 
     <section class="block">
       <h2>押した募集</h2>
-      ${listingRow(pinned, true)}
+      <div class="listing-grid">${listingRow(pinned, true)}</div>
     </section>
 
     <section class="block">
       <h2>同じゲームのほかの募集 <span class="end note">合う順</span></h2>
-      ${others.length ? others.map((l) => listingRow(l, false)).join('')
+      ${others.length ? `<div class="listing-grid">${others.map((l) => listingRow(l, false)).join('')}</div>`
         : `<div class="card">${empty('このゲームの募集はまだありません', '自分で募集を出すこともできます。')}</div>`}
     </section>
 
     <section class="block">
       <h2>終わった募集</h2>
-      ${ENDED_LISTINGS.length ? ENDED_LISTINGS.map(endedRow).join('')
+      ${ENDED_LISTINGS.length ? `<div class="listing-grid">${ENDED_LISTINGS.map(endedRow).join('')}</div>`
         : `<div class="card">${empty('終わった募集はありません', '')}</div>`}
     </section>
 
@@ -772,6 +784,7 @@ function renderConnections() {
   return `
     <header class="app-bar"><h1>つながり</h1></header>
 
+    <div class="cols is-even"><div class="col">
     <section class="block"><h2>届いた申請 <span class="count num">${c.incoming.length}</span></h2>
       <div class="card">${c.incoming.length ? c.incoming.map((q) => {
         const p = PEOPLE[q.from];
@@ -802,6 +815,7 @@ function renderConnections() {
         </div>`;
       }).join('') : empty('知らせはまだありません', 'つながった相手が募集を出すと、ここに届きます。')}</div>
     </section>
+    </div><div class="col">
 
     <section class="block"><h2>つながった相手 <span class="count num">${c.friends.length}</span></h2>
       ${c.friends.length ? c.friends.map((id) => {
@@ -819,7 +833,8 @@ function renderConnections() {
           </div>
         </article>`;
       }).join('') : `<div class="card">${empty('つながった相手はまだいません', '一緒に遊んだあと「残す」を選ぶと、ここに並びます。')}</div>`}
-    </section>`;
+    </section>
+    </div></div>`;
 }
 
 /* ---------- 画面の切り替え ---------- */
@@ -852,6 +867,8 @@ function render() {
   const { name, params } = currentRoute();
   const view = document.getElementById('view');
   view.innerHTML = ROUTES[name].render(params);
+  // 1列で足りる画面は、広い画面でも横に伸ばしすぎない
+  view.classList.toggle('is-narrow', name === 'matched' || name === 'search-id');
   document.querySelectorAll('.tab').forEach((tab) => {
     if (tab.dataset.tab === ROUTES[name].tab) tab.setAttribute('aria-current', 'page');
     else tab.removeAttribute('aria-current');

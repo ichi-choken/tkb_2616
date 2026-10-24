@@ -61,6 +61,8 @@ a { color: inherit; }
 .demo-bar {
   position: sticky;
   top: 0;
+  padding-left: max(12px, calc((100% - 1360px) / 2 + 16px)) !important;
+  padding-right: max(12px, calc((100% - 1360px) / 2 + 16px)) !important;
   z-index: 30;
   display: flex;
   align-items: center;
@@ -77,60 +79,73 @@ a { color: inherit; }
 .role-switch button[aria-pressed="true"] { background: var(--ink); color: #fff; }
 .demo-reset { margin-left: auto; border: 0; background: none; padding: 0; font-size: 12px; color: var(--muted); text-decoration: underline; }
 
-/* ---------- 画面の枠 ---------- */
+/* ---------- 画面の枠：画面の幅いっぱいを使う ---------- */
+body { background: var(--app-bg); }
 .app {
-  position: relative;
-  max-width: 480px;
   min-height: calc(100vh - var(--demo-h));
-  margin: 0 auto;
-  background: var(--app-bg);
-  background-image: radial-gradient(120% 40% at 50% -6%, color-mix(in srgb, #8743f0 9%, transparent), transparent 70%);
-}
-@media (min-width: 520px) {
-  .app { margin: 16px auto; min-height: calc(100vh - var(--demo-h) - 32px); border-radius: 28px; box-shadow: 0 30px 60px -30px #141a2e8c; overflow: hidden; }
+  background-image: radial-gradient(120% 320px at 50% 0, color-mix(in srgb, #8743f0 8%, transparent), transparent 70%);
 }
 .screen {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 0 12px calc(var(--tabbar-h) + 24px + env(safe-area-inset-bottom));
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 0 16px calc(var(--tabbar-h) + 32px + env(safe-area-inset-bottom));
 }
+.screen.is-narrow { max-width: 720px; }
+
+/* 2列：スマホでは縦に並び、広い画面では左右に並ぶ */
+.cols { display: flex; flex-direction: column; gap: 14px; }
+.col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.listing-grid { display: grid; gap: 10px; }
 
 .app-bar {
-  position: sticky;
-  top: var(--demo-h);
-  z-index: 5;
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 -12px;
-  padding: 14px 12px 10px;
-  background: color-mix(in srgb, var(--app-bg) 92%, transparent);
-  backdrop-filter: blur(8px);
+  padding: 18px 0 10px;
   border-bottom: 1px solid var(--line);
 }
-.app-bar h1 { font-family: var(--f-display); font-weight: 400; font-size: 19px; line-height: 1.3; }
+.app-bar h1 { font-family: var(--f-display); font-weight: 400; font-size: 20px; line-height: 1.3; }
+
+@media (min-width: 900px) {
+  body { font-size: 16px; }
+  .screen { gap: 20px; padding-left: 32px; padding-right: 32px; }
+  .app-bar { padding-top: 28px; padding-bottom: 14px; }
+  .app-bar h1 { font-size: 28px; }
+  .cols { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 24px; align-items: start; }
+  .cols.is-even { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .col { gap: 20px; }
+  .col.is-sticky { position: sticky; top: calc(var(--demo-h) + 16px); }
+  .listing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .block > h2 { font-size: 14px; }
+  .nickname { font-size: 28px; }
+  .avatar { width: 64px; height: 64px; font-size: 26px; }
+  .game-body h3 { font-size: 17px; }
+  .meta, .heat-tag, .note, .reason { font-size: 13px; }
+  .from-api { font-size: 12px; }
+  .chip, .opt { font-size: 14px; }
+  .listing-main { font-size: 17px; }
+  .art { width: 60px; }
+  .tab { font-size: 12px; }
+}
 .app-bar .end { margin-left: auto; }
 .back { border: 0; background: none; padding: 0 4px 0 0; font-size: 26px; line-height: 1; color: var(--muted); text-decoration: none; }
 
 /* ---------- 下のタブ ---------- */
 .tabbar {
   position: fixed;
-  left: 50%;
+  left: 0;
+  right: 0;
   bottom: 0;
   z-index: 20;
-  transform: translateX(-50%);
-  width: 100%;
-  max-width: 480px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  padding: 6px max(8px, calc((100% - 640px) / 2)) calc(6px + env(safe-area-inset-bottom));
   background: color-mix(in srgb, var(--card) 94%, transparent);
   backdrop-filter: blur(8px);
   border-top: 1px solid var(--line);
-}
-@media (min-width: 520px) {
-  .tabbar { position: sticky; left: auto; transform: none; margin-top: -62px; }
 }
 .tab {
   display: grid;
@@ -251,7 +266,7 @@ a { color: inherit; }
 .avatar.sm { width: 32px; height: 32px; font-size: 14px; box-shadow: none; }
 .who-col { display: grid; gap: 2px; min-width: 0; flex: 1; }
 .nickname { font-family: var(--f-display); font-size: 22px; line-height: 1.2; }
-.app-id { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.app-id { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; white-space: nowrap; font-size: 12px; color: var(--muted); }
 .app-id strong { font-size: 14px; color: var(--ink); }
 
 .games { display: grid; gap: 6px; }
@@ -309,7 +324,7 @@ a.game::after { content: "›"; font-size: 20px; line-height: 1; color: var(--mu
 .edit-item { display: grid; gap: 8px; padding: 10px 12px; }
 .edit-item + .edit-item { border-top: 1px solid var(--line); }
 .add-chip { justify-self: start; border: 1px dashed var(--line); border-radius: 999px; padding: 3px 12px; background: none; color: var(--muted); font-size: 13px; margin: 0 12px 12px; }
-.save-bar { position: sticky; bottom: calc(var(--tabbar-h) + 8px); display: flex; gap: 8px; justify-content: flex-end; padding: 10px 12px; border-radius: 12px; background: var(--card); box-shadow: var(--shadow-card); }
+.save-bar { position: sticky; z-index: 6; bottom: calc(var(--tabbar-h) + 8px); display: flex; gap: 8px; justify-content: flex-end; padding: 10px 12px; border-radius: 12px; background: var(--card); box-shadow: var(--shadow-card); }
 .save-bar .btn-main { width: auto; padding: 10px 24px; font-size: 15px; }
 .error { padding: 8px 12px; border-radius: 10px; background: var(--danger-bg); color: var(--danger); font-size: 13px; font-weight: 700; }
 
@@ -380,4 +395,9 @@ a.game::after { content: "›"; font-size: 20px; line-height: 1; color: var(--mu
   color: #fff;
   font-size: 14px;
   pointer-events: none;
+}
+
+@media (min-width: 1280px) {
+  .listing-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cols .listing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
