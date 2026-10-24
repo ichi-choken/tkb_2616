@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { IntegrationError, runSync, steamSyncPolicy, lastUpdatedLabel, publicLinkStatus, type SyncSnapshot } from '../src/index.ts';
+import { IntegrationError, readSteamData, runSync, steamSyncPolicy, lastUpdatedLabel, publicLinkStatus, type SyncSnapshot } from '../src/index.ts';
 
 const start = Date.parse('2026-10-24T00:00:00Z');
 const stamp = new Date(start).toISOString();
@@ -59,4 +59,14 @@ test('Last update displays the requested seven-day boundary and never invents a 
   assert.equal(status.externalId, '123');
   assert.ok(!JSON.stringify(status).includes('secret'));
   assert.ok(!JSON.stringify(status).includes('discard'));
+});
+
+test('An unavailable library clears prior playtime without depending on the profile API', async () => {
+  const reading = () => readSteamData({
+    ownedGames: async () => ({ status: 'unavailable', source: 'steam', reason: 'not_visible_or_missing' }),
+    profile: async () => assert.fail('Profile API must not override the unavailable library'),
+  }, '76561198000000001');
+  const result = await runSync({ linkId: 'a', revision: 'a', previous: { ...initial, value: { profile: null, library: { status: 'available', source: 'steam', fetchedAt: stamp, games: [] } } } }, reading, commit, steamSyncPolicy, start);
+  assert.equal(result.snapshot.status, 'unavailable');
+  assert.equal(result.snapshot.value, null);
 });

@@ -1,4 +1,4 @@
-import { DiscordClient, SteamClient, IntegrationError, runSync, tokenCipher, type DiscordTokens, type Reading, steamSyncPolicy, type SyncPolicy } from '../../../packages/integrations/src/index.ts';
+import { DiscordClient, SteamClient, readSteamData, IntegrationError, runSync, tokenCipher, type DiscordTokens, type Reading, steamSyncPolicy, type SyncPolicy } from '../../../packages/integrations/src/index.ts';
 import { adminClient, required } from './runtime.ts';
 import { commitSnapshot, type LinkRow } from './store.ts';
 
@@ -19,9 +19,7 @@ export async function syncOne(row: LinkRow, db: ReturnType<typeof adminClient>) 
   const read = async (): Promise<Reading<unknown>> => {
     if (row.provider === 'steam') {
       const steam = new SteamClient(required('STEAM_WEB_API_KEY'));
-      const [profile, library] = await Promise.all([steam.profile(row.external_id), steam.ownedGames(row.external_id)]);
-      if (library.status === 'unavailable') return { status: 'unavailable' };
-      return { status: 'available', value: { profile, library }, fetchedAt: library.fetchedAt };
+      return readSteamData(steam, row.external_id);
     }
     if (!ciphertext) throw new IntegrationError('relink_required');
     const cipher = await tokenCipher(required('INTEGRATION_TOKEN_KEY'));
