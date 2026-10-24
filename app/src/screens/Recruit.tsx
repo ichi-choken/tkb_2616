@@ -56,7 +56,10 @@ export function CreateScreen({ game }: { game?: string }) {
     update((d) => { d.rec.busy = true; });
     await fakeSave();
     // 編集でも「プロフィールにも保存」にチェックしていれば、プロフィールに反映する
-    if (f.saveToProfile) saveGameToProfile(f);
+    if (f.saveToProfile && !(await saveGameToProfile(f))) {
+      update(d => { d.rec.busy = false; });
+      return;
+    }
     update((d) => {
       d.rec.room = d.rec.roomDraft.trim();
       d.rec.inviteUrl = d.rec.inviteDraft.trim();

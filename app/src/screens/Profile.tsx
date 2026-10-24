@@ -1,12 +1,12 @@
 // プロフィール：自分のプロフィール、編集、他の人のプロフィール、IDで探す
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Feather from '@expo/vector-icons/Feather';
 import {
   GAMES, HEAT, PEOPLE, PLATFORMS, REGIONS,
   hasNgWord, isTime, type MyGame, type Person, type PersonId, type Profile,
 } from '../data';
-import { fakeSave, useStore } from '../store';
+import { useStore } from '../store';
 import { AddModal, type AddKind } from '../AddModal';
 import { C, useLayout } from '../theme';
 import {
@@ -22,23 +22,23 @@ export function ProfileScreen() {
 }
 
 function ProfileView() {
-  const { s: st, update, go, copy, toast, open } = useStore();
+  const { s: st, update, editProfile, go, copy, toast, open } = useStore();
   const [adding, setAdding] = useState<AddKind | null>(null);
   const p = st.me;
 
   // 熱量・実力はスライダーでその場で直せる（profile-5）。部品ごとに保存する（ui-1）
-  const setGame = (i: number, key: 'heat' | 'skill', value: number) => {
-    update((d) => { d.me.games[i][key] = value; });
+  const setGame = async (i: number, key: 'heat' | 'skill', value: number) => {
+    if (!(await editProfile(profile => { profile.games[i][key] = value; }))) return;
     toast(key === 'heat' ? `熱量を「${HEAT[value]}」にしました` : `実力を ${value} にしました`);
   };
-  const setHobbyHeat = (i: number, value: number) => {
-    update((d) => { d.me.hobbies[i].heat = value; });
+  const setHobbyHeat = async (i: number, value: number) => {
+    if (!(await editProfile(profile => { profile.hobbies[i].heat = value; }))) return;
     toast(`熱量を「${HEAT[value]}」にしました`);
   };
 
   return (
     <Stack>
-      <AppBar title="プロフィール" right={<MiniButton label="IDで探す" onPress={() => go('search-id')} />} />
+      <AppBar title="プロフィール" subtitle="あなたの「好き」を、仲間へのきっかけに。" right={<MiniButton label="IDで探す" onPress={() => go('search-id')} />} />
       <Cols
         left={<>
           <WhoCard p={p} right={<SubButton label="編集" onPress={() => update((d) => { d.draft = JSON.parse(JSON.stringify(d.me)); d.saveError = false; })} />}>
@@ -48,6 +48,7 @@ function ProfileView() {
               <MiniButton label="リンクをコピー" onPress={() => copy(`https://shumitomo.jp/${p.appId}`, 'プロフィールのリンクをコピーしました')} />
             </Row>
           </WhoCard>
+          <Note>プロフィールはこの端末に保存されます。同じブラウザで再読み込みしても残ります。</Note>
           <TimesCard times={p.times} region={p.region} />
         </>}
         right={<>
@@ -90,31 +91,33 @@ function ProfileView() {
 }
 
 function WhoCard({ p, right, children }: { p: Profile | Person; right?: React.ReactNode; children?: React.ReactNode }) {
-  const { s } = useLayout();
-  return (
-    <Card style={{ padding: s(14) }}>
-      <Row gap={12}>
+  const { design } = useLayout();
+  return <Card pad>
+    <Stack gap={16}>
+      <Row gap={14}>
         <Avatar p={p} />
-        <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
-          <Txt size={22} weight="display">{p.nickname}</Txt>
-          {children}
-        </Stack>
+        <Txt size={design.id === 'play' ? 22 : 24} weight="display" style={{ flex: 1 }}>{p.nickname}</Txt>
         {right}
       </Row>
-    </Card>
-  );
+      <View style={{ height: 1, backgroundColor: C.line }} />
+      <Stack gap={6}>{children}</Stack>
+    </Stack>
+  </Card>;
 }
 
 function TimesCard({ times, region }: { times: { start: string; end: string }; region: string }) {
   const { s } = useLayout();
-  return (
-    <Card pad>
-      <Stack gap={8}>
-        <Row><Note style={{ width: s(120) }}>いつも遊ぶ時間帯</Note><Txt size={14} weight="bold">{times.start}〜{times.end}</Txt></Row>
-        <Row><Note style={{ width: s(120) }}>住んでいる地方</Note><Txt size={14} weight="bold">{region}</Txt></Row>
-      </Stack>
-    </Card>
-  );
+  return <Card pad><Row gap={16}>
+    <Stack gap={5} style={{ flex: 1 }}>
+      <Row gap={5}><Feather name="clock" size={s(13)} color={C.accent} /><Txt size={11} color={C.muted}>遊ぶ時間帯</Txt></Row>
+      <Txt size={13} weight="bold">{times.start}〜{times.end}</Txt>
+    </Stack>
+    <View style={{ height: s(36), width: 1, backgroundColor: C.line }} />
+    <Stack gap={5} style={{ flex: 1 }}>
+      <Row gap={5}><Feather name="map-pin" size={s(13)} color={C.muted} /><Txt size={11} color={C.muted}>住んでいる地方</Txt></Row>
+      <Txt size={13} weight="bold">{region}</Txt>
+    </Stack>
+  </Row></Card>;
 }
 
 // ゲーム1つ。上段が熱量、下段が実力。自分のゲームなら、どちらもその場で変えられる
@@ -130,19 +133,19 @@ function GameCard({ g, onRecruit, onSkill, onHeat }: {
           <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
             <Txt size={16} weight="bold">{GAMES[g.tag].name}</Txt>
             <Note>{g.platform}</Note>
-            {g.steam ? <Note>プレイ時間 {g.steam.hours}時間 ・ Steamから {g.steam.updated}に取得</Note> : null}
           </Stack>
           {onRecruit ? (
-            <Pressable onPress={onRecruit} accessibilityRole="link" hitSlop={6}>
-              <Row gap={2}><Txt size={13} weight="bold" color={C.accent}>募集を出す</Txt><Ionicons name="chevron-forward" size={s(16)} color={C.accent} /></Row>
+            <Pressable onPress={onRecruit} accessibilityRole="link" accessibilityLabel={`${GAMES[g.tag].name}の募集を出す`} hitSlop={6}>
+              <Row gap={3} style={{ paddingHorizontal: s(8), minHeight: s(34) }}><Feather name="plus" size={s(15)} color={C.accent} /><Txt size={12} weight="bold" color={C.accent}>募集</Txt></Row>
             </Pressable>
           ) : null}
         </Row>
-        <View style={{ gap: s(4) }}>
+        {g.steam ? <Note>Steam · {g.steam.hours}時間プレイ / {g.steam.updated}に取得</Note> : null}
+        <View style={{ gap: s(8), paddingTop: s(8) }}>
           <Row><Txt size={12} weight="bold" color={C.muted} style={{ width: s(40) }}>熱量</Txt><HeatTag value={g.heat} /></Row>
           <HeatSlider value={g.heat} onChange={onHeat} />
         </View>
-        <View style={{ gap: s(4) }}>
+        <View style={{ gap: s(8), paddingTop: s(8) }}>
           <Row><Txt size={12} weight="bold" color={C.muted} style={{ width: s(40) }}>実力</Txt>
             <Txt size={14} weight="bold">{g.skill}</Txt><Note>/ 9</Note></Row>
           <SkillSlider value={g.skill} onChange={onSkill} />
@@ -165,7 +168,7 @@ function HobbyRow({ name, heat, onHeat }: { name: string; heat: number; onHeat?:
 /* ---------- 編集 ---------- */
 
 function ProfileEdit() {
-  const { s: st, update, toast } = useStore();
+  const { s: st, update, editProfile, toast } = useStore();
   const { s } = useLayout();
   const p = st.draft!;
   const [adding, setAdding] = useState<AddKind | null>(null);
@@ -177,10 +180,9 @@ function ProfileEdit() {
     if (!/^[A-Za-z0-9_]+$/.test(p.appId)) return toast('アプリIDは英数字と _ で入れてください');
     if (!isTime(p.times.start) || !isTime(p.times.end)) return toast('時間帯は 21:00 のように入れてください');
     update((d) => { d.saving = true; d.saveError = false; });
-    await fakeSave();
-    // 成功が確認できた内容を表示する（profile-23）
-    update((d) => { if (d.draft) d.me = d.draft; d.draft = null; d.saving = false; });
-    toast('保存しました');
+    const saved = await editProfile(profile => { Object.assign(profile, JSON.parse(JSON.stringify(p))); });
+    update(d => { d.saving = false; d.saveError = !saved; if (saved) d.draft = null; });
+    if (saved) toast('この端末に保存しました');
   };
 
   const formRow = (label: string, body: React.ReactNode) => (

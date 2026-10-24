@@ -1,6 +1,6 @@
 // フレンド：届いた申請、相手の知らせ、フレンド
 import { View } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Feather from '@expo/vector-icons/Feather';
 import { GAMES, PEOPLE } from '../data';
 import { useStore } from '../store';
 import { C, useLayout } from '../theme';
@@ -90,7 +90,7 @@ export function ConnectionsScreen() {
                 <Avatar p={p} small />
                 <TextButton label={p.nickname} onPress={() => go('person', { id })} />
                 <View style={{ flex: 1 }} />
-                <Ionicons name="time-outline" size={s(14)} color={C.muted} />
+                <Feather name="clock" size={s(14)} color={C.muted} />
                 <Note>{p.times.start}〜{p.times.end}</Note>
               </Row>
               {/* 自分にもあるものに印が付く（connections-5） */}
