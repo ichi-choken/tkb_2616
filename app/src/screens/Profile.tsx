@@ -1,5 +1,5 @@
 // プロフィール：自分のプロフィール、編集、他の人のプロフィール、IDで探す
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { Pressable, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import {
@@ -7,6 +7,8 @@ import {
   hasNgWord, isPersonId, isTime, type MyGame, type Person, type PersonId, type Profile,
 } from '../data';
 import { useStore } from '../store';
+import { demoSettings } from '../demo-settings';
+import { steamProfileVisible } from '../demo-settings-state';
 import { AddModal, type AddKind } from '../AddModal';
 import { C, useLayout } from '../theme';
 import {
@@ -23,6 +25,7 @@ export function ProfileScreen() {
 
 function ProfileView() {
   const { s: st, update, editProfile, go, copy, toast, open } = useStore();
+  const settings = useSyncExternalStore(demoSettings.subscribe, demoSettings.getSnapshot, demoSettings.getSnapshot);
   const [adding, setAdding] = useState<AddKind | null>(null);
   const { wide } = useLayout();
   const p = st.me;
@@ -81,7 +84,7 @@ function ProfileView() {
         right={<>
           <Block title="ゲーム" count={p.games.length} right={<MiniButton label="＋ 追加" onPress={() => setAdding('games')} />}>
             {p.games.length ? p.games.map((g, i) => (
-              <GameCard key={g.tag} g={g}
+              <GameCard key={g.tag} g={g} showSteam={steamProfileVisible(settings)}
                 onRecruit={() => { update((d) => { d.role = 'rec'; }); go('create', { game: g.tag }); }}
                 onSkill={(v) => setGame(i, 'skill', v)}
                 onHeat={(v) => setGame(i, 'heat', v)} />
@@ -130,8 +133,8 @@ function TimesCard({ times, region }: { times: { start: string; end: string }; r
 }
 
 // ゲーム1つ。上段が熱量、下段が実力。自分のゲームなら、どちらもその場で変えられる
-function GameCard({ g, onRecruit, onSkill, onHeat }: {
-  g: MyGame; onRecruit?: () => void; onSkill?: (v: number) => void; onHeat?: (v: number) => void;
+function GameCard({ g, onRecruit, onSkill, onHeat, showSteam = true }: {
+  g: MyGame; onRecruit?: () => void; onSkill?: (v: number) => void; onHeat?: (v: number) => void; showSteam?: boolean;
 }) {
   const { s } = useLayout();
   return (
@@ -149,7 +152,7 @@ function GameCard({ g, onRecruit, onSkill, onHeat }: {
             </Pressable>
           ) : null}
         </Row>
-        {g.steam ? <Note>Steam · {g.steam.hours}時間プレイ / {g.steam.updated}に取得</Note> : null}
+        {showSteam && g.steam ? <Note>Steam · {g.steam.hours}時間プレイ / {g.steam.updated}に取得</Note> : null}
         <View style={{ gap: s(8), paddingTop: s(8) }}>
           <Row><Txt size={12} weight="bold" color={C.muted} style={{ width: s(40) }}>熱量</Txt><HeatTag value={g.heat} /></Row>
           <HeatSlider value={g.heat} onChange={onHeat} />

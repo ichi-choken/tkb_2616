@@ -181,13 +181,13 @@ const StoreContext = createContext<Store | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   // この端末に残っていれば、前の続きから始める（saved.ts）。プロフィールは profile-storage から読む
-  const restored = useRef(false);
-  const [s, setS] = useState<State>(() => {
+  const [initial] = useState(() => {
     const fresh = freshState(isWeb ? hashToRoute(window.location.hash) : undefined);
     const loaded = loadSaved(fresh);
-    restored.current = loaded !== fresh;
-    return loaded;
+    return { state: loaded, restored: loaded !== fresh };
   });
+  const restored = useRef(initial.restored);
+  const [s, setS] = useState<State>(initial.state);
   const [profiles] = useState(() => createProfileRepository(AsyncStorage));
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -246,6 +246,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (d.rec.editing && route.name !== 'create' && d.rec.saved) {
         d.rec.form = d.rec.saved;
         d.rec.editing = false;
+        d.rec.busy = false;
       }
       d.route = route;
     });

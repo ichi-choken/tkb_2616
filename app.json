@@ -12,7 +12,9 @@
     "plugins": [
       "expo-router",
       "expo-notifications",
-      "expo-font"
+      "expo-font",
+      "expo-sqlite",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true
