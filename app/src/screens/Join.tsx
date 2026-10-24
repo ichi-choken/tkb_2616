@@ -1,6 +1,6 @@
 // 参加する人：募集一覧、成立
 import { View } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Feather from '@expo/vector-icons/Feather';
 import { ENDED_LISTINGS, GAMES, LISTINGS, PEOPLE, checkGameId, type Listing } from '../data';
 import { fakeSave, findListing, newRecruitForm, useStore } from '../store';
 import { C, useLayout } from '../theme';
@@ -152,14 +152,11 @@ export function MatchedScreen() {
     </Card>
   );
 
-  const status = (icon: keyof typeof Ionicons.glyphMap, title: string, tone: 'ok' | 'rest' | 'warn') => {
+  const status = (icon: keyof typeof Feather.glyphMap, title: string, tone: 'ok' | 'rest' | 'warn') => {
     const fg = { ok: C.ok, rest: C.rest, warn: C.warn }[tone];
-    const bg = { ok: C.okBg, rest: C.restBg, warn: C.warnBg }[tone];
     return (
       <Row gap={10}>
-        <View style={{ width: s(44), height: s(44), borderRadius: s(14), backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name={icon} size={s(24)} color={fg} />
-        </View>
+        <Feather name={icon} size={s(24)} color={fg} />
         <Txt size={17} weight="bold" color={tone === 'ok' ? C.ok : C.ink}>{title}</Txt>
       </Row>
     );
@@ -170,7 +167,7 @@ export function MatchedScreen() {
     body = <>
       <Card pad>
         <Stack gap={8}>
-          {status('time-outline', '承認を待っています', 'warn')}
+          {status('clock', '承認を待っています', 'warn')}
           {/* 承認されるとその場で切り替わる（matched-8）。開き直しても結果が出る（matched-9） */}
           <Note>承認されると、この画面がその場で切り替わります。閉じても、同じリンクを開き直せば結果が出ます。</Note>
           <DemoButton label="（デモ）承認された" onPress={() => setResult('matched')} />
@@ -183,7 +180,7 @@ export function MatchedScreen() {
     body = (
       <Card pad>
         <Stack gap={8}>
-          {status('stop-circle-outline', 'この募集の開催は中止されました', 'rest')}
+          {status('x-circle', 'この募集の開催は中止されました', 'rest')}
           <Note>部屋番号・招待リンクは表示しません。同じゲームの今出ている募集から探せます。</Note>
           <SubButton label="同じゲームの募集を見る" style={{ alignSelf: 'flex-start' }}
             onPress={() => { update((d) => { d.par.sent = false; d.par.result = 'waiting'; }); go('list'); }} />
@@ -195,7 +192,7 @@ export function MatchedScreen() {
     body = <>
       <Card pad>
         <Stack gap={8}>
-          {status('sparkles-outline', '遊びは終了しました', 'rest')}
+          {status('check-circle', '遊びは終了しました', 'rest')}
           <Note>部屋番号・招待URL・ゲーム内IDは、もう表示しません。</Note>
         </Stack>
       </Card>
@@ -211,7 +208,7 @@ export function MatchedScreen() {
     body = (
       <Card pad style={{ borderWidth: 2, borderColor: C.ok }}>
         <Stack gap={10}>
-          {status('checkmark', par.result === 'playing' ? '遊んでいる最中' : '成立しました', 'ok')}
+          {status('check', par.result === 'playing' ? '遊んでいる最中' : '成立しました', 'ok')}
           {/* 募集の設定に合わせて、入る場所かゲーム内IDが出る（matched-1） */}
           {game.join === 'room' ? <JoinInfo room="4821" url="" /> : <>
             <Note>募集した人が、あなたのゲーム内IDに招待を送ります。</Note>
