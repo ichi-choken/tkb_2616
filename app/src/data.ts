@@ -13,22 +13,56 @@ export const WHEN = ['今夜', '明日', '週末', '未定'] as const;
 // 名前・ゲーム内IDに入れられない言葉（app-24）
 export const NG_WORDS = ['line', '@', 'http', 'discord.gg', 'insta'];
 
-export type GameTag = 'splatoon3' | 'apex' | 'amongus' | 'fallguys' | 'masterduel';
+// ゲームの目印。候補にあるゲームは英字の名前、自分で足したゲームは custom: から始まる
+export type GameTag = string;
 export type PersonId = 'mei' | 'ken' | 'sora';
 
 // join：room＝入る場所（部屋番号など）、id＝参加する人のゲーム内IDが要る（ADR-28）
 export type Game = { name: string; join: 'room' | 'id'; colors: [string, string] };
+// ゲームの候補。本番では IGDB から取る（EXT-IGDB）
 export const GAMES: Record<GameTag, Game> = {
   splatoon3: { name: 'スプラトゥーン3', join: 'room', colors: ['#d7f205', '#5b2bd9'] },
   apex: { name: 'Apex Legends', join: 'id', colors: ['#b3261e', '#3a0d0b'] },
   amongus: { name: 'Among Us', join: 'room', colors: ['#c51111', '#132ed1'] },
   fallguys: { name: 'Fall Guys', join: 'id', colors: ['#ff6ec7', '#5ad1ff'] },
   masterduel: { name: '遊戯王 マスターデュエル', join: 'id', colors: ['#1e3a8a', '#0b1026'] },
+  valorant: { name: 'VALORANT', join: 'id', colors: ['#ff4655', '#0f1923'] },
+  minecraft: { name: 'Minecraft', join: 'room', colors: ['#5c9e31', '#3b2a1a'] },
+  mariokart8: { name: 'マリオカート8 デラックス', join: 'room', colors: ['#e60012', '#ffcc00'] },
+  smashbros: { name: '大乱闘スマッシュブラザーズ SPECIAL', join: 'room', colors: ['#1d1d1d', '#d4a017'] },
+  monsterhunter: { name: 'モンスターハンターワイルズ', join: 'room', colors: ['#5a3e1b', '#c48a3a'] },
+  pokemonsv: { name: 'ポケットモンスター スカーレット・バイオレット', join: 'id', colors: ['#e3350d', '#7b2fbe'] },
+  fortnite: { name: 'Fortnite', join: 'id', colors: ['#2e8bff', '#a64dff'] },
+  overwatch2: { name: 'Overwatch 2', join: 'id', colors: ['#f99e1a', '#43484c'] },
+  streetfighter6: { name: 'ストリートファイター6', join: 'room', colors: ['#f2c200', '#1a1a1a'] },
+  lethalcompany: { name: 'Lethal Company', join: 'room', colors: ['#ff6a00', '#121212'] },
+  animalcrossing: { name: 'あつまれ どうぶつの森', join: 'room', colors: ['#7ac143', '#f6e27a'] },
+  genshin: { name: '原神', join: 'id', colors: ['#3a6ea5', '#e8d3a2'] },
+  dbd: { name: 'Dead by Daylight', join: 'id', colors: ['#7a0000', '#1b1b1b'] },
+  rocketleague: { name: 'Rocket League', join: 'id', colors: ['#1f6feb', '#f97316'] },
+  palworld: { name: 'Palworld', join: 'room', colors: ['#3fb8af', '#1f3a5f'] },
 };
-export const GAME_TAGS = Object.keys(GAMES) as GameTag[];
 
-export const LIKE_SUGGEST = ['ボカロ', '邦ロック', '少年漫画', 'SFアニメ', 'VTuber', 'ジブリ', 'K-POP', 'ポケモン'];
-export const HOBBY_SUGGEST = ['カフェ巡り', 'ボードゲーム', 'TRPG', '写真', '料理', 'イラスト', '筋トレ'];
+// 候補に無いゲームを足す。名前から色を決める
+export function addCustomGame(name: string): GameTag {
+  const found = Object.keys(GAMES).find((t) => GAMES[t].name === name);
+  if (found) return found;
+  const tag = `custom:${name}`;
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 360;
+  GAMES[tag] = { name, join: 'room', colors: [`hsl(${h}, 60%, 55%)`, `hsl(${(h + 40) % 360}, 55%, 30%)`] };
+  return tag;
+}
+
+// 好きなものと趣味の候補（profile-19：候補から選び、無いものは自由に入れる）
+export const LIKE_SUGGEST = [
+  'ボカロ', '邦ロック', 'K-POP', 'アイドル', 'VTuber', 'ゲーム実況', '少年漫画', '少女漫画', 'SFアニメ',
+  '日常系アニメ', 'ジブリ', 'ポケモン', 'ディズニー', '特撮', 'お笑い', '映画', '海外ドラマ', 'サッカー観戦', '野球観戦',
+];
+export const HOBBY_SUGGEST = [
+  'カフェ巡り', 'ボードゲーム', 'TRPG', 'マーダーミステリー', '写真', '料理', 'お菓子作り', 'イラスト', '筋トレ',
+  'ランニング', 'キャンプ', '旅行', '読書', 'プラモデル', 'カラオケ', 'ギター', 'DTM', '御朱印集め',
+];
 
 export type MyGame = {
   tag: GameTag;

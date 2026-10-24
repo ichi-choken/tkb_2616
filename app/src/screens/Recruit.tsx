@@ -1,7 +1,7 @@
 // 募集する人：募集を出す、届いた参加希望
 import { useEffect } from 'react';
 import { View } from 'react-native';
-import { GAMES, PEOPLE, PLATFORMS, SKILLS, VC, WHEN, isTime, type GameTag, type PersonId } from '../data';
+import { GAMES, PEOPLE, PLATFORMS, SKILLS, VC, WHEN, isTime, type PersonId } from '../data';
 import { fakeSave, inviteText, newRecruitForm, useStore, type InviteParts, type RecStatus, type Request } from '../store';
 import { C, useLayout } from '../theme';
 import {
@@ -33,7 +33,7 @@ export function CreateScreen({ game }: { game?: string }) {
   // プロフィールのゲームを押して来たら、そのゲームを選んだ状態で開く（profile-4）
   useEffect(() => {
     if (game && game in GAMES && !r.editing && r.stage === 'draft' && r.form.game !== game) {
-      update((d) => { d.rec.form = newRecruitForm(game as GameTag, d.me.games); });
+      update((d) => { d.rec.form = newRecruitForm(game, d.me.games); });
     }
   }, [game]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -232,12 +232,12 @@ export function RequestsScreen() {
           <View key={q.id}>{i > 0 ? <Divider /> : null}
             <KeepRow person={q.person} kept={r.keep[q.person]} onKeep={(v) => {
               update((d) => { d.rec.keep[q.person] = v; });
-              if (v) toast('相手も「残す」を選ぶと、つながります');
+              if (v) toast('相手も「残す」を選ぶと、フレンドになります');
             }} />
           </View>
         )) : <Empty title="成立した人はいませんでした" text="次の募集を出してみましょう。" />}
       </Card>
-      <Note>つながりは、お互いに「残す」を選んだときだけできます。後から外したりブロックしたりもできます。</Note>
+      <Note>フレンドには、お互いに「残す」を選んだときだけなれます。後から外したりブロックしたりもできます。</Note>
     </Block>
   ) : (
     <Block title="参加希望" count={r.requests.length} right={<Note>合う順</Note>}>

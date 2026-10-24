@@ -3,10 +3,11 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import {
-  GAMES, GAME_TAGS, HEAT, HOBBY_SUGGEST, LIKE_SUGGEST, PEOPLE, PLATFORMS, REGIONS,
+  GAMES, HEAT, PEOPLE, PLATFORMS, REGIONS,
   hasNgWord, isTime, type MyGame, type Person, type PersonId, type Profile,
 } from '../data';
 import { fakeSave, useStore } from '../store';
+import { AddModal, type AddKind } from '../AddModal';
 import { C, useLayout } from '../theme';
 import {
   AppBar, Art, Avatar, Block, Card, Chip, Cols, Divider, Empty, Field, HeatSlider, HeatTag, MainButton,
@@ -22,6 +23,7 @@ export function ProfileScreen() {
 
 function ProfileView() {
   const { s: st, update, go, copy, toast, open } = useStore();
+  const [adding, setAdding] = useState<AddKind | null>(null);
   const p = st.me;
 
   // 熱量・実力はスライダーでその場で直せる（profile-5）。部品ごとに保存する（ui-1）
@@ -49,38 +51,40 @@ function ProfileView() {
           <TimesCard times={p.times} region={p.region} />
         </>}
         right={<>
-          <Block title="ゲーム" count={p.games.length}>
+          <Block title="ゲーム" count={p.games.length} right={<MiniButton label="＋ 追加" onPress={() => setAdding('games')} />}>
             {p.games.length ? p.games.map((g, i) => (
               <GameCard key={g.tag} g={g}
                 onRecruit={() => { update((d) => { d.role = 'rec'; }); go('create', { game: g.tag }); }}
                 onSkill={(v) => setGame(i, 'skill', v)}
                 onHeat={(v) => setGame(i, 'heat', v)} />
             )) : (
-              <Card><Empty title="ゲームがまだ入っていません" text="「編集」からゲームを入れると、合う募集が見つかりやすくなります。" /></Card>
+              <Card><Empty title="ゲームがまだ入っていません" text="ゲームを入れると、合う募集が見つかりやすくなります。" button={{ label: '＋ ゲームを追加', onPress: () => setAdding('games') }} /></Card>
             )}
           </Block>
 
-          <Block title="趣味">
+          <Block title="趣味" right={<MiniButton label="＋ 追加" onPress={() => setAdding('hobbies')} />}>
             <Card>
               {p.hobbies.length ? p.hobbies.map((h, i) => (
                 <View key={h.name}>
                   {i > 0 ? <Divider /> : null}
                   <HobbyRow name={h.name} heat={h.heat} onHeat={(v) => setHobbyHeat(i, v)} />
                 </View>
-              )) : <Empty title="趣味がまだ入っていません" text="「編集」から入れられます。" />}
+              )) : <Empty title="趣味がまだ入っていません" text="「＋ 追加」から入れられます。" />}
             </Card>
           </Block>
 
-          <Block title="好きなもの" right={<Note>鍵をかけたものは自分だけに見える</Note>}>
+          <Block title="好きなもの" right={<MiniButton label="＋ 追加" onPress={() => setAdding('likes')} />}>
             <Card pad>
               {p.likes.length ? (
                 <Row gap={6} wrap>{p.likes.map((l) => <Chip key={l.name} label={l.name} locked={l.locked} />)}</Row>
-              ) : <Empty title="好きなものがまだ入っていません" text="「編集」から入れられます。" />}
+              ) : <Empty title="好きなものがまだ入っていません" text="「＋ 追加」から入れられます。" />}
             </Card>
+            <Note>鍵をかけたものは自分だけに見えます。鍵は「編集」でかけられます。</Note>
           </Block>
           <RightsNote onOpen={open} />
         </>}
       />
+      <AddModal kind={adding} onClose={() => setAdding(null)} />
     </Stack>
   );
 }
@@ -113,7 +117,7 @@ function TimesCard({ times, region }: { times: { start: string; end: string }; r
   );
 }
 
-// ゲーム1つ。上段が実力、下段が熱量。自分のゲームなら、どちらもその場で変えられる
+// ゲーム1つ。上段が熱量、下段が実力。自分のゲームなら、どちらもその場で変えられる
 function GameCard({ g, onRecruit, onSkill, onHeat }: {
   g: MyGame; onRecruit?: () => void; onSkill?: (v: number) => void; onHeat?: (v: number) => void;
 }) {
@@ -135,13 +139,13 @@ function GameCard({ g, onRecruit, onSkill, onHeat }: {
           ) : null}
         </Row>
         <View style={{ gap: s(4) }}>
+          <Row><Txt size={12} weight="bold" color={C.muted} style={{ width: s(40) }}>熱量</Txt><HeatTag value={g.heat} /></Row>
+          <HeatSlider value={g.heat} onChange={onHeat} />
+        </View>
+        <View style={{ gap: s(4) }}>
           <Row><Txt size={12} weight="bold" color={C.muted} style={{ width: s(40) }}>実力</Txt>
             <Txt size={14} weight="bold">{g.skill}</Txt><Note>/ 9</Note></Row>
           <SkillSlider value={g.skill} onChange={onSkill} />
-        </View>
-        <View style={{ gap: s(4) }}>
-          <Row><Txt size={12} weight="bold" color={C.muted} style={{ width: s(40) }}>熱量</Txt><HeatTag value={g.heat} /></Row>
-          <HeatSlider value={g.heat} onChange={onHeat} />
         </View>
       </Stack>
     </Card>
@@ -164,7 +168,7 @@ function ProfileEdit() {
   const { s: st, update, toast } = useStore();
   const { s } = useLayout();
   const p = st.draft!;
-  const [freeLike, setFreeLike] = useState('');
+  const [adding, setAdding] = useState<AddKind | null>(null);
   const set = (fn: (d: NonNullable<typeof st.draft>) => void) => update((d) => { if (d.draft) fn(d.draft); });
 
   const save = async () => {
@@ -177,14 +181,6 @@ function ProfileEdit() {
     // 成功が確認できた内容を表示する（profile-23）
     update((d) => { if (d.draft) d.me = d.draft; d.draft = null; d.saving = false; });
     toast('保存しました');
-  };
-
-  const addFree = () => {
-    const name = freeLike.trim();
-    if (!name) return;
-    if (hasNgWord(name)) return toast('この言葉は入れられません');
-    set((d) => { d.likes.push({ name }); });
-    setFreeLike('');
   };
 
   const formRow = (label: string, body: React.ReactNode) => (
@@ -218,7 +214,7 @@ function ProfileEdit() {
           </Card>
         }
         right={<>
-          <Block title="ゲーム">
+          <Block title="ゲーム" right={<MiniButton label="＋ 追加" onPress={() => setAdding('games')} />}>
             <Card>
               {p.games.map((g, i) => (
                 <View key={g.tag}>
@@ -231,15 +227,10 @@ function ProfileEdit() {
                   </Stack>
                 </View>
               ))}
-              <Row gap={6} wrap style={{ padding: s(12) }}>
-                {GAME_TAGS.filter((t) => !p.games.some((g) => g.tag === t)).map((t) => (
-                  <MiniButton key={t} label={`＋ ${GAMES[t].name}`} onPress={() => set((d) => { d.games.push({ tag: t, platform: PLATFORMS[0], heat: 2, skill: 5 }); })} />
-                ))}
-              </Row>
             </Card>
           </Block>
 
-          <Block title="趣味">
+          <Block title="趣味" right={<MiniButton label="＋ 追加" onPress={() => setAdding('hobbies')} />}>
             <Card>
               {p.hobbies.map((h, i) => (
                 <View key={h.name}>
@@ -248,15 +239,10 @@ function ProfileEdit() {
                     <TextButton danger label="削除" onPress={() => set((d) => { d.hobbies.splice(i, 1); })} /></Row>
                 </View>
               ))}
-              <Row gap={6} wrap style={{ padding: s(12) }}>
-                {HOBBY_SUGGEST.filter((n) => !p.hobbies.some((h) => h.name === n)).map((n) => (
-                  <MiniButton key={n} label={`＋ ${n}`} onPress={() => set((d) => { d.hobbies.push({ name: n, heat: 2 }); })} />
-                ))}
-              </Row>
             </Card>
           </Block>
 
-          <Block title="好きなもの" right={<Note>🔒を押すと鍵をかけられる</Note>}>
+          <Block title="好きなもの" right={<MiniButton label="＋ 追加" onPress={() => setAdding('likes')} />}>
             <Card pad>
               <Stack gap={10}>
                 <Row gap={6} wrap>
@@ -271,22 +257,15 @@ function ProfileEdit() {
                     </Chip>
                   ))}
                 </Row>
-                {/* 好きなものは候補から選ぶ。候補に無いものは自由に入れられる（profile-19） */}
-                <Row gap={6} wrap>
-                  {LIKE_SUGGEST.filter((n) => !p.likes.some((l) => l.name === n)).map((n) => (
-                    <MiniButton key={n} label={`＋ ${n}`} onPress={() => set((d) => { d.likes.push({ name: n }); })} />
-                  ))}
-                </Row>
-                <Row>
-                  <Field value={freeLike} onChangeText={setFreeLike} placeholder="候補に無いものを入れる" maxLength={20} style={{ flex: 1 }} onSubmitEditing={addFree} />
-                  <SubButton label="追加" onPress={addFree} />
-                </Row>
+                <Note>🔒を押すと鍵をかけられます</Note>
               </Stack>
             </Card>
           </Block>
         </>}
       />
 
+      {/* 好きなものは候補から選ぶ。候補に無いものは自由に入れられる（profile-19） */}
+      <AddModal kind={adding} onClose={() => setAdding(null)} />
       {st.saveError ? <Txt size={13} weight="bold" color={C.danger}>プロフィールを保存できませんでした</Txt> : null}
       <Card pad>
         <Row style={{ justifyContent: 'flex-end' }}>
@@ -299,7 +278,7 @@ function ProfileEdit() {
   );
 }
 
-/* ---------- 他の人のプロフィール（あなたと同じ・つながりの申請） ---------- */
+/* ---------- 他の人のプロフィール（あなたと同じ・フレンド申請） ---------- */
 
 export function PersonScreen({ id }: { id?: string }) {
   const { s: st, update, go, toast, open } = useStore();
@@ -326,10 +305,10 @@ export function PersonScreen({ id }: { id?: string }) {
       <AppBar title={p.nickname} onBack={() => go('connections')} />
       <Cols
         left={<>
-          <WhoCard p={p} right={isFriend ? <Txt size={12} weight="bold" color={C.ok}>つながり</Txt> : (
-            // 他の人のプロフィールから、そのままつながりの申請を送れる（profile-15）
-            <PillButton label={sent ? '申請しました' : 'つながりの申請'} disabled={sent}
-              onPress={() => { update((d) => { d.conn.sentTo.push(pid); }); toast('つながりの申請を送りました'); }} />
+          <WhoCard p={p} right={isFriend ? <Txt size={12} weight="bold" color={C.ok}>フレンド</Txt> : (
+            // 他の人のプロフィールから、そのままフレンド申請を送れる（profile-15）
+            <PillButton label={sent ? '申請しました' : 'フレンド申請'} disabled={sent}
+              onPress={() => { update((d) => { d.conn.sentTo.push(pid); }); toast('フレンド申請を送りました'); }} />
           )}>
             <Row gap={6}><Note>アプリID</Note><Txt size={14} weight="bold">{p.appId}</Txt></Row>
             <Trust value={p.trust} />

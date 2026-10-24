@@ -95,7 +95,7 @@ function DemoBar() {
 const TABS: { tab: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { tab: 'profile', label: 'プロフィール', icon: 'person-outline' },
   { tab: 'recruit', label: '募集', icon: 'megaphone-outline' },
-  { tab: 'connections', label: 'つながり', icon: 'people-outline' },
+  { tab: 'connections', label: 'フレンド', icon: 'people-outline' },
 ];
 
 function TabBar({ current }: { current: Tab }) {

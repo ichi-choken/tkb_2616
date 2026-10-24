@@ -143,7 +143,7 @@ export function MiniButton({ label, onPress, done }: BtnProps & { done?: boolean
   );
 }
 
-// 押すと進む丸いボタン。ok は承認・つながるなどの緑
+// 押すと進む丸いボタン。ok は承認・フレンドになるなどの緑
 export function PillButton({ label, onPress, disabled, ok }: BtnProps & { ok?: boolean }) {
   const { s } = useLayout();
   const box: ViewStyle = { borderRadius: 999, paddingVertical: s(6), paddingHorizontal: s(14), alignItems: 'center' };

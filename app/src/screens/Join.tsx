@@ -114,7 +114,7 @@ function ListingCard({ l, pinned }: { l: Listing; pinned?: boolean }) {
   );
 }
 
-// 終わった募集には参加できないが、募集した人につながりの申請を送れる（list-12）
+// 終わった募集には参加できないが、募集した人にフレンド申請を送れる（list-12）
 function EndedCard({ l }: { l: Listing }) {
   const { s: st, update, toast } = useStore();
   const p = PEOPLE[l.by];
@@ -126,8 +126,8 @@ function EndedCard({ l }: { l: Listing }) {
         <Row gap={10} wrap><Note>{l.when}</Note><Note>{l.platform}</Note><HeatTag value={l.heat} /></Row>
         <Row style={{ justifyContent: 'space-between' }}>
           <Trust value={p.trust} />
-          <PillButton label={sent ? '申請済み' : 'つながりの申請'} disabled={sent}
-            onPress={() => { update((d) => { d.conn.sentTo.push(l.by); }); toast('つながりの申請を送りました'); }} />
+          <PillButton label={sent ? '申請済み' : 'フレンド申請'} disabled={sent}
+            onPress={() => { update((d) => { d.conn.sentTo.push(l.by); }); toast('フレンド申請を送りました'); }} />
         </Row>
       </Stack>
     </Card>
@@ -191,7 +191,7 @@ export function MatchedScreen() {
       </Card>
     );
   } else if (par.result === 'ended') {
-    // 遊び終了では、入る場所・IDを表示せず、つながりを残すか聞く（matched-21、matched-5）
+    // 遊び終了では、入る場所・IDを表示せず、フレンドとして残すか聞く（matched-21、matched-5）
     body = <>
       <Card pad>
         <Stack gap={8}>
@@ -199,12 +199,12 @@ export function MatchedScreen() {
           <Note>部屋番号・招待URL・ゲーム内IDは、もう表示しません。</Note>
         </Stack>
       </Card>
-      <Block title="つながりを残しますか？">
+      <Block title="フレンドとして残しますか？">
         <Card><KeepRow person={l.by} kept={par.keep} onKeep={(v) => {
           update((d) => { d.par.keep = v; });
-          if (v) toast('相手も「残す」を選ぶと、つながります');
+          if (v) toast('相手も「残す」を選ぶと、フレンドになります');
         }} /></Card>
-        <Note>お互いに「残す」を選ぶとつながります。後から外したりブロックしたりできます。</Note>
+        <Note>お互いに「残す」を選ぶとフレンドになります。後から外したりブロックしたりできます。</Note>
       </Block>
     </>;
   } else {
@@ -219,11 +219,11 @@ export function MatchedScreen() {
           </>}
           {l.platform.includes('Steam') ? (
             <View style={{ alignSelf: 'flex-start' }}>
-              <MiniButton done={par.friendAdded} label={par.friendAdded ? 'フレンド申請を送りました' : 'Steamでフレンドに追加'}
+              <MiniButton done={par.friendAdded} label={par.friendAdded ? 'Steamでフレンド申請を送りました' : 'Steamでフレンドに追加'}
                 onPress={() => update((d) => { d.par.friendAdded = true; })} />
             </View>
           ) : null}
-          <Note>後からフレンドを削除・ブロックできます。</Note>
+          <Note>Steamのフレンドは、後から削除・ブロックできます。</Note>
           <Row gap={6} wrap>
             {par.result !== 'playing' ? <DemoButton label="（デモ）遊び始めた" onPress={() => setResult('playing')} /> : null}
             <DemoButton label="（デモ）遊び終わった" onPress={() => setResult('ended')} />

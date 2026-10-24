@@ -1,4 +1,4 @@
-// つながり：届いた申請、相手の知らせ、つながった相手
+// フレンド：届いた申請、相手の知らせ、フレンド
 import { View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { GAMES, PEOPLE } from '../data';
@@ -30,12 +30,12 @@ export function ConnectionsScreen() {
                 {/* 断るボタンは無い（connections-4） */}
                 <Row style={{ justifyContent: 'space-between' }}>
                   <Trust value={p.trust} />
-                  <PillButton ok label="つながる" onPress={() => {
+                  <PillButton ok label="フレンドになる" onPress={() => {
                     update((d) => {
                       d.conn.incoming = d.conn.incoming.filter((x) => x.from !== q.from);
                       if (!d.conn.friends.includes(q.from)) d.conn.friends.push(q.from);
                     });
-                    toast(`${p.nickname}さんとつながりました`);
+                    toast(`${p.nickname}さんとフレンドになりました`);
                   }} />
                 </Row>
               </Stack>
@@ -73,13 +73,13 @@ export function ConnectionsScreen() {
               </Row>
             </View>
           );
-        }) : <Empty title="知らせはまだありません" text="つながった相手が募集を出すと、ここに届きます。" />}
+        }) : <Empty title="知らせはまだありません" text="フレンドが募集を出すと、ここに届きます。" />}
       </Card>
     </Block>
   );
 
   const friends = (
-    <Block title="つながった相手" count={c.friends.length}>
+    <Block title="フレンド" count={c.friends.length}>
       {c.friends.length ? c.friends.map((id) => {
         const p = PEOPLE[id];
         const common = p.games.filter((g) => me.games.some((m) => m.tag === g.tag));
@@ -102,9 +102,9 @@ export function ConnectionsScreen() {
                 {p.likes.filter((l) => !l.locked && me.likes.some((m) => m.name === l.name)).map((l) => <Chip key={l.name} common label={l.name} />)}
               </Row>
               <Row style={{ justifyContent: 'space-between' }}>
-                {/* つながりは、いつでも外せる（connections-7） */}
-                <TextButton danger label="つながりを外す" onPress={async () => {
-                  if (!(await confirm(`${p.nickname}さんとのつながりを外しますか？`))) return;
+                {/* フレンドは、いつでも外せる（connections-7） */}
+                <TextButton danger label="フレンドを外す" onPress={async () => {
+                  if (!(await confirm(`${p.nickname}さんをフレンドから外しますか？`))) return;
                   update((d) => { d.conn.friends = d.conn.friends.filter((x) => x !== id); });
                 }} />
                 {/* 両方が持っているゲームで誘う（connections-8） */}
@@ -114,13 +114,13 @@ export function ConnectionsScreen() {
             </Stack>
           </Card>
         );
-      }) : <Card><Empty title="つながった相手はまだいません" text="一緒に遊んだあと「残す」を選ぶと、ここに並びます。" /></Card>}
+      }) : <Card><Empty title="フレンドはまだいません" text="一緒に遊んだあと「残す」を選ぶと、ここに並びます。" /></Card>}
     </Block>
   );
 
   return (
     <Stack>
-      <AppBar title="つながり" />
+      <AppBar title="フレンド" />
       <Cols even left={<>{incoming}{notices}</>} right={friends} />
     </Stack>
   );
