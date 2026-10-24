@@ -7,13 +7,18 @@ test('IGDB: escapes search input, caches tokens and always releases the shared r
   let tokens = 0; let acquired = 0; let released = 0;
   const fetcher: Fetcher = async (url, init) => {
     if (String(url).includes('id.twitch.tv')) { tokens++; assert.ok(String(init?.body).includes('grant_type=client_credentials')); return response({ access_token: 'secret', expires_in: 3600 }); }
+    if (/\/(game_localizations|alternative_names)$/.test(String(url))) {
+      assert.ok(String(init?.body).includes(`where name ~ *${JSON.stringify('a"; limit 500;')}*;`));
+      return response([]);
+    }
     assert.ok(String(init?.body).startsWith(`search ${JSON.stringify('a"; limit 500;')};`));
     return response([{ id: 1, name: 'Test', cover: { url: '//images.igdb.com/igdb/image/upload/test.png' } }]);
   };
   const client = new IgdbClient({ clientId: 'id', clientSecret: 'secret' }, { async acquire() { acquired++; return { async release() { released++; } }; } }, fetcher);
   await client.search('a"; limit 500;', 10);
   await client.search('a"; limit 500;', 10);
-  assert.equal(tokens, 1); assert.equal(acquired, 2); assert.equal(released, 2);
+  // Each search asks for names, regional titles and alternative names
+  assert.equal(tokens, 1); assert.equal(acquired, 6); assert.equal(released, 6);
   assert.throws(() => client.search('', 10));
   assert.throws(() => client.get(-1));
   assert.equal(parseGames([{ id: 2, name: 'No image', cover: { url: 'https://attacker.test/image.png' } }])[0]?.coverUrl, null);
@@ -29,6 +34,20 @@ test('IGDB: refreshes a rejected token once, respects a shared gate rejection, a
   assert.equal(tokens, 2); assert.equal(requests, 2); assert.equal(released, 2);
   const limited = new IgdbClient({ clientId: 'id', clientSecret: 'secret' }, { async acquire() { throw new IntegrationError('rate_limited', 429, 250); } }, async () => response({ access_token: 'token', expires_in: 3600 }));
   await assert.rejects(limited.get(1), (error: unknown) => error instanceof IntegrationError && error.retryAfterMs === 250);
+});
+
+test('IGDB: a regional title that search misses, such as スプラトゥーン3, is found through game localizations', async () => {
+  const bodies: string[] = [];
+  const client = new IgdbClient({ clientId: 'id', clientSecret: 'secret' }, { async acquire() { return { async release() {} }; } }, async (url, init) => {
+    if (String(url).includes('id.twitch.tv')) return response({ access_token: 'token', expires_in: 3600 });
+    const body = String(init?.body); bodies.push(body);
+    if (String(url).endsWith('/game_localizations')) return response([{ game: 143613 }, { game: 143613 }]);
+    if (String(url).endsWith('/alternative_names')) return response([]);
+    if (body.startsWith('search')) return response([]);
+    return response([{ id: 143613, name: 'Splatoon 3' }]);
+  });
+  assert.deepEqual((await client.search('スプラトゥーン3', 5)).map(g => g.id), [143613]);
+  assert.ok(bodies.some(b => b.startsWith('where id = (143613);')));
 });
 
 test('IGDB: a chosen game is read with the columns to store, and Steam is recognised by its store URL or category', async () => {

@@ -54,6 +54,10 @@ export function parseGameRecord(value: unknown): GameRecord | null {
     firstReleaseDate: game.first_release_date == null ? null : new Date(integer(game.first_release_date) * 1000).toISOString().slice(0, 10),
     steamAppId: steam };
 }
+function parseGameIds(value: unknown): number[] {
+  if (!Array.isArray(value)) throw new IntegrationError('invalid_payload');
+  return value.map(raw => integer(object(raw).game));
+}
 export class IgdbClient {
   #clientId: string; #secret: string; #gate: ApiGate; #fetch: Fetcher;
   #token: { value: string; expiresAt: number } | null = null;
@@ -74,12 +78,12 @@ export class IgdbClient {
     })();
     try { return await this.#pending; } finally { this.#pending = null; }
   }
-  async #games<T>(query: string, parse: (value: unknown) => T): Promise<T> {
+  async #games<T>(query: string, parse: (value: unknown) => T, endpoint = 'games'): Promise<T> {
     for (let attempt = 0; attempt < 2; attempt++) {
       const token = await this.#accessToken();
       const lease = await this.#gate.acquire();
       try {
-        return parse(await json('https://api.igdb.com/v4/games', { method: 'POST', headers: { 'Client-ID': this.#clientId, authorization: `Bearer ${token}`, 'content-type': 'text/plain' }, body: query }, this.#fetch));
+        return parse(await json(`https://api.igdb.com/v4/${endpoint}`, { method: 'POST', headers: { 'Client-ID': this.#clientId, authorization: `Bearer ${token}`, 'content-type': 'text/plain' }, body: query }, this.#fetch));
       } catch (error) {
         if (attempt === 0 && error instanceof IntegrationError && error.kind === 'unauthorized') { this.#token = null; continue; }
         throw error;
@@ -89,7 +93,24 @@ export class IgdbClient {
   }
   search(query: string, limit: number): Promise<GameCandidate[]> {
     if (!query.trim() || !Number.isSafeInteger(limit) || limit < 1 || limit > 500) throw new IntegrationError('invalid_payload');
-    return this.#games(`search ${JSON.stringify(query.trim())}; fields name,slug,first_release_date,cover.url,platforms.name; limit ${limit};`, parseGames);
+    return this.#search(JSON.stringify(query.trim()), limit);
+  }
+  // IGDB's search covers names and whole alternative names, but not regional titles such as
+  // 「スプラトゥーン3」 (game localizations) or part of an alternative name such as 「エーペックス」.
+  // Look both up by "contains" too, so other names lead to the same game (server-8).
+  // One search costs up to four IGDB requests; the shared gate keeps the rate limit (EXT-IGDB-5).
+  async #search(quoted: string, limit: number): Promise<GameCandidate[]> {
+    const fields = 'fields name,slug,first_release_date,cover.url,platforms.name;';
+    const contains = `fields game; where name ~ *${quoted}*; limit ${limit};`;
+    const [found, regional, alternative] = await Promise.all([
+      this.#games(`search ${quoted}; ${fields} limit ${limit};`, parseGames),
+      this.#games(contains, parseGameIds, 'game_localizations'),
+      this.#games(contains, parseGameIds, 'alternative_names'),
+    ]);
+    const known = new Set(found.map(g => g.id));
+    const missing = [...new Set([...regional, ...alternative])].filter(id => !known.has(id)).slice(0, limit - found.length);
+    if (!missing.length) return found;
+    return [...found, ...await this.#games(`where id = (${missing.join(',')}); ${fields} limit ${missing.length};`, parseGames)];
   }
   get(id: number): Promise<GameCandidate[]> {
     if (!Number.isSafeInteger(id) || id < 1) throw new IntegrationError('invalid_payload');
