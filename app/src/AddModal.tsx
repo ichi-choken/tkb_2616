@@ -35,11 +35,12 @@ function Tag({ label, color, bg }: { label: string; color: string; bg: string })
 
 /* ---------- 予測変換つきの入力欄 ---------- */
 
-export function Combobox({ items, placeholder, onPick, onCreate }: {
+export function Combobox({ items, placeholder, onPick, onCreate, onType }: {
   items: Item[];
   placeholder: string;
   onPick: (item: Item) => void;
   onCreate: (name: string) => void;
+  onType?: () => void;
 }) {
   const { s } = useLayout();
   const fitHeight = useFitHeight();
@@ -77,7 +78,7 @@ export function Combobox({ items, placeholder, onPick, onCreate }: {
         <TextInput
           ref={input}
           value={text}
-          onChangeText={(v) => { setText(v); setOpen(true); }}
+          onChangeText={(v) => { setText(v); setOpen(true); onType?.(); }}
           onFocus={() => setOpen(true)}
           onSubmitEditing={submit}
           placeholder={placeholder}
@@ -134,7 +135,10 @@ export function Combobox({ items, placeholder, onPick, onCreate }: {
 export function AddModal({ kind, onClose }: { kind: AddKind | null; onClose: () => void }) {
   const { s: st, update, editProfile, toast } = useStore();
   const { s } = useLayout();
+  // 足せなかった理由は、モーダルの中に出す（下の知らせはモーダルに隠れるため）
+  const [error, setError] = useState('');
   if (!kind) return null;
+  const close = () => { setError(''); onClose(); };
 
   // 自分のプロフィールの編集中なら下書きに、そうでなければプロフィールにそのまま足す
   const target = st.draft ?? st.me;
@@ -156,18 +160,20 @@ export function AddModal({ kind, onClose }: { kind: AddKind | null; onClose: () 
       }));
 
   const add = async (name: string, tag?: string) => {
-    if (hasNgWord(name)) return toast('この言葉は入れられません');
+    if (hasNgWord(name)) return setError('この言葉は入れられません');
     if (kind === 'games') {
       const t = tag ?? addCustomGame(name);
-      if (target.games.some((g) => g.tag === t)) return toast(`${GAMES[t].name}はもう入っています`);
+      if (target.games.some((g) => g.tag === t)) return setError(`${GAMES[t].name}はもう入っています`);
       if (!(await edit((p) => { if (!p.games.some(g => g.tag === t)) p.games.push({ tag: t, platform: 'Switch', heat: 2, skill: 5 }); }))) return;
       toast(`${GAMES[t].name}を追加しました`);
     } else {
       const list = kind === 'hobbies' ? target.hobbies : target.likes;
-      if (list.some((x) => x.name === name)) return toast(`${name}はもう入っています`);
+      if (list.some((x) => x.name === name)) return setError(`${name}はもう入っています`);
       if (!(await edit((p) => { if (kind === 'hobbies') { if (!p.hobbies.some(h => h.name === name)) p.hobbies.push({ name, heat: 2 }); } else if (!p.likes.some(l => l.name === name)) p.likes.push({ name }); }))) return;
       toast(`${name}を追加しました`);
     }
+    // 足せたら閉じる。開いたままだと、知らせがモーダルの下に隠れて、足せたか分からない
+    close();
   };
 
   const added = items.filter((it) => it.added);
@@ -175,7 +181,7 @@ export function AddModal({ kind, onClose }: { kind: AddKind | null; onClose: () 
 
   return (
     // 画面の高さに合わせて縮み、見出しと閉じるボタンは常に見える（FitModal）
-    <FitModal title={TITLE[kind]} onClose={onClose} footer={<SubButton label="閉じる" onPress={onClose} style={{ alignSelf: 'flex-end' }} />}>
+    <FitModal title={TITLE[kind]} onClose={close} footer={<SubButton label="閉じる" onPress={close} style={{ alignSelf: 'flex-end' }} />}>
           <Stack gap={12}>
             <Note>候補から選ぶか、名前を打って「新規追加」を押してください。</Note>
             <Combobox
@@ -183,7 +189,9 @@ export function AddModal({ kind, onClose }: { kind: AddKind | null; onClose: () 
               placeholder={PLACEHOLDER[kind]}
               onPick={(it) => add(it.label, kind === 'games' ? it.key : undefined)}
               onCreate={(name) => add(name)}
+              onType={() => setError('')}
             />
+            {error ? <Txt size={13} weight="bold" color={C.danger}>{error}</Txt> : null}
             {added.length ? (
               <Stack gap={6}>
                 <Row gap={8} wrap>

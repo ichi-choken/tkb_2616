@@ -1,13 +1,15 @@
 // 募集する人：募集を出す、届いた参加希望
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { GAMES, PEOPLE, PLATFORMS, SKILLS, VC, WHEN, isTime, type PersonId } from '../data';
+import { GAMES, PEOPLE, PLATFORMS, VC, isGameTag, isTime, type PersonId } from '../data';
+import { UNDECIDED, formatWhen, todayISO } from '../dates';
+import { DateTimeField } from '../DateTimeField';
 import { fakeSave, inviteText, newRecruitForm, useStore, type InviteParts, type RecStatus, type Request, type State } from '../store';
 import { createPendingSave } from '../pending-save';
 import { C, useLayout } from '../theme';
 import {
-  AppBar, Art, Avatar, Badge, Block, Card, Check, Cols, Divider, Empty, Field, HeatSlider, MainButton,
-  MiniButton, Note, Opt, Opts, PillButton, Reasons, Row, Stack, SubButton, TextButton, Trust, Txt,
+  AppBar, Art, Avatar, Badge, Block, Card, Check, Cols, Divider, Empty, Field, HeatSlider, HeatTag, MainButton,
+  MiniButton, Note, Opt, Opts, PillButton, Reasons, Row, SkillSlider, Stack, SubButton, TextButton, Trust, Txt,
 } from '../ui';
 
 function FormRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -45,7 +47,7 @@ export function CreateScreen({ game }: { game?: string }) {
 
   // プロフィールのゲームを押して来たら、そのゲームを選んだ状態で開く（profile-4）
   useEffect(() => {
-    if (game && game in GAMES && !r.editing && r.stage === 'draft' && r.form.game !== game) {
+    if (isGameTag(game) && !r.editing && r.stage === 'draft' && r.form.game !== game) {
       update((d) => { d.rec.form = newRecruitForm(game, d.me.games); });
     }
   }, [game]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -56,7 +58,7 @@ export function CreateScreen({ game }: { game?: string }) {
   const saveEdit = async () => {
     if (pendingSave.isPending()) return;
     if (r.inviteDraft && !/^https:\/\//.test(r.inviteDraft)) return toast('招待URLは https:// から入れてください');
-    if (f.when !== '未定' && !isTime(f.time)) return toast('時刻は 21:00 のように入れてください');
+    if (f.when !== UNDECIDED && !isTime(f.time)) return toast('時刻を選んでください');
     try {
       await pendingSave.run(async () => {
         update((d) => { d.rec.busy = true; });
@@ -82,6 +84,7 @@ export function CreateScreen({ game }: { game?: string }) {
     } catch {
       update((d) => { d.rec.busy = false; });
       toast('変更を保存できませんでした。もう一度お試しください');
+
     }
   };
   const cancelEdit = () => {
@@ -91,7 +94,7 @@ export function CreateScreen({ game }: { game?: string }) {
 
   // 募集を出したあとに、プロフィールのゲームなどから来たとき。前の募集の内容のまま公開し直さないよう、どうするか選ぶ
   if (r.stage === 'posted' && !editing) {
-    const next = (game && game in GAMES ? game : f.game) as typeof f.game;
+    const next = isGameTag(game) ? game : f.game;
     return (
       <Stack>
         <AppBar title="募集を出す" />
@@ -125,8 +128,19 @@ export function CreateScreen({ game }: { game?: string }) {
       </FormRow>
       <Divider />
       <FormRow label="いつ">
-        <Opts items={WHEN} value={f.when as (typeof WHEN)[number]} onChange={(v) => setForm((x) => { x.when = v; })} />
-        {f.when !== '未定' ? <Field mono value={f.time} maxLength={5} onChangeText={(v) => setForm((x) => { x.time = v; })} /> : null}
+        {/* 日付はカレンダー、時刻は時計から選ぶ。よく使う日はボタンで */}
+        <Row gap={6} wrap>
+          <Opt label="今日" on={f.when === todayISO()} onPress={() => setForm((x) => { x.when = todayISO(); })} />
+          <Opt label="明日" on={f.when === todayISO(1)} onPress={() => setForm((x) => { x.when = todayISO(1); })} />
+          <Opt label="未定" on={f.when === UNDECIDED} onPress={() => setForm((x) => { x.when = UNDECIDED; })} />
+        </Row>
+        {f.when !== UNDECIDED ? (
+          <Row gap={8} wrap>
+            <DateTimeField mode="date" label="日付" value={f.when} min={todayISO()} onChange={(v) => setForm((x) => { x.when = v; })} />
+            <DateTimeField mode="time" label="時刻" value={f.time} onChange={(v) => setForm((x) => { x.time = v; })} />
+          </Row>
+        ) : <Note>日時は参加する人と相談します</Note>}
+        {f.when !== UNDECIDED ? <Note>{formatWhen(f.when, f.time)}</Note> : null}
       </FormRow>
       <Divider />
       <FormRow label="人数">
@@ -141,12 +155,16 @@ export function CreateScreen({ game }: { game?: string }) {
       <Divider />
       <FormRow label="VC"><Opts items={VC} value={f.vc as (typeof VC)[number]} onChange={(v) => setForm((x) => { x.vc = v; })} /></FormRow>
       <Divider />
-      <FormRow label="実力">
-        <Opts items={SKILLS} value={f.skill as (typeof SKILLS)[number]} onChange={(v) => setForm((x) => { x.skill = v; })} />
-        <Note>1〜9。大きいほど上手い</Note>
+      {/* プロフィールと同じく、上段が熱量、下段が実力 */}
+      <FormRow label="熱量">
+        <HeatTag value={f.heat} />
+        <HeatSlider value={f.heat} onChange={(v) => setForm((x) => { x.heat = v; })} />
       </FormRow>
       <Divider />
-      <FormRow label="熱量"><HeatSlider value={f.heat} onChange={(v) => setForm((x) => { x.heat = v; })} /></FormRow>
+      <FormRow label="実力">
+        <Row gap={4}><Txt size={14} weight="bold">{f.skill}</Txt><Note>/ 9 ・ 大きいほど上手い</Note></Row>
+        <SkillSlider value={f.skill} onChange={(v) => setForm((x) => { x.skill = v; })} />
+      </FormRow>
       <Divider />
       <FormRow label="保存">
         <Check label="プロフィールにも保存" value={f.saveToProfile} onChange={(v) => setForm((x) => { x.saveToProfile = v; })} />
@@ -262,7 +280,7 @@ export function RequestsScreen() {
         <Art tag={f.game} />
         <Stack gap={2} style={{ flex: 1 }}>
           <Txt size={16} weight="bold">{GAMES[f.game].name}</Txt>
-          <Note>{f.when === '未定' ? '日時は相談' : `${f.when} ${f.time}〜`} ・ あと{f.need}人 ・ 成立 {matched.length}人</Note>
+          <Note>{formatWhen(f.when, f.time)} ・ あと{f.need}人 ・ 成立 {matched.length}人</Note>
         </Stack>
         <Badge label={label} tone={tone} />
       </Row>

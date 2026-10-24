@@ -23,11 +23,27 @@ export function steamProfileVisible(state: Settings): boolean {
   return state.steam.linked && state.steamShow.games && state.steam.fetch !== 'private';
 }
 
-export function createDemoSettings() {
+export const SETTINGS_STORAGE_KEY = 'shumitomo:settings:v1';
+type SettingsStorage = { readItem: (key: string) => string | null; writeItem: (key: string, value: string) => boolean };
+
+export function createDemoSettings(storage?: SettingsStorage) {
   let state = fresh();
+  try {
+    const raw = storage?.readItem(SETTINGS_STORAGE_KEY);
+    if (raw) {
+      const v = JSON.parse(raw) as Partial<Settings>;
+      state = {
+        ...state, ...v, googleStep: false,
+        steam: { ...freshLink(), ...v.steam, phase: 'idle' },
+        discord: { ...freshLink(), ...v.discord, phase: 'idle' },
+        steamShow: { ...state.steamShow, ...v.steamShow },
+      };
+    }
+  } catch { /* 読み取れない保存データは初期状態で開く。 */ }
   const listeners = new Set<() => void>();
   const publish = (next: Settings) => {
     state = next;
+    storage?.writeItem(SETTINGS_STORAGE_KEY, JSON.stringify(state));
     listeners.forEach(listener => listener());
   };
   return {
@@ -44,5 +60,3 @@ export function createDemoSettings() {
     reset() { publish(fresh()); },
   };
 }
-
-export const demoSettings = createDemoSettings();

@@ -4,10 +4,11 @@ import { Pressable, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import {
   GAMES, HEAT, PEOPLE, PLATFORMS, REGIONS,
-  hasNgWord, isTime, type MyGame, type Person, type PersonId, type Profile,
+  hasNgWord, isPersonId, isTime, type MyGame, type Person, type PersonId, type Profile,
 } from '../data';
 import { useStore } from '../store';
-import { demoSettings, steamProfileVisible } from '../demo-settings-state';
+import { demoSettings } from '../demo-settings';
+import { steamProfileVisible } from '../demo-settings-state';
 import { AddModal, type AddKind } from '../AddModal';
 import { C, useLayout } from '../theme';
 import {
@@ -295,7 +296,7 @@ function ProfileEdit() {
 
 export function PersonScreen({ id }: { id?: string }) {
   const { s: st, update, go, toast, open } = useStore();
-  const p = id && id in PEOPLE ? PEOPLE[id as PersonId] : null;
+  const p = isPersonId(id) ? PEOPLE[id] : null;
   if (!p) {
     return (
       <Stack>

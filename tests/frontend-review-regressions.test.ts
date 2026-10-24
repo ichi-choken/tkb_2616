@@ -116,3 +116,19 @@ test('An async profile write failure releases the save guard for a retry', async
   assert.equal(await save.run(async () => {}, async () => { committed = true; }), true);
   assert.equal(committed, true);
 });
+
+test('Restored Steam settings still control profile visibility and reset is persisted', () => {
+  let stored: string | null = null;
+  const storage = { readItem: () => stored, writeItem: (_key: string, value: string) => { stored = value; return true; } };
+  const first = createDemoSettings(storage);
+  first.update(s => { s.steam.linked = true; s.steamShow.games = false; s.discord.phase = 'authing'; s.googleStep = true; });
+  const restored = createDemoSettings(storage);
+  assert.equal(restored.getSnapshot().steam.linked, true);
+  assert.equal(steamProfileVisible(restored.getSnapshot()), false);
+  assert.equal(restored.getSnapshot().discord.phase, 'idle');
+  assert.equal(restored.getSnapshot().googleStep, false);
+  restored.update(s => { s.steamShow.games = true; });
+  assert.equal(steamProfileVisible(createDemoSettings(storage).getSnapshot()), true);
+  restored.reset();
+  assert.equal(steamProfileVisible(createDemoSettings(storage).getSnapshot()), false);
+});
