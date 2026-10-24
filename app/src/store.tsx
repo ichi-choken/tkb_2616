@@ -4,6 +4,7 @@ import { Alert, Linking, Platform, Pressable, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createProfileRepository } from './profile-storage';
 import * as Clipboard from 'expo-clipboard';
+import { formatWhen, todayISO } from './dates';
 import {
   GAMES, HEAT, LISTINGS, ME, SAMPLE_REQUESTS,
   type GameTag, type MyGame, type PersonId, type Profile,
@@ -90,7 +91,7 @@ const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 export function newRecruitForm(tag: GameTag, games: MyGame[] = ME.games): RecruitForm {
   const g = games.find((x) => x.tag === tag);
   return {
-    game: tag, when: '今夜', time: '21:00', need: 3,
+    game: tag, when: todayISO(), time: '21:00', need: 3,
     platform: g ? g.platform : 'Switch', vc: 'あり',
     heat: g ? g.heat : 2, skill: g ? g.skill : 5, saveToProfile: false,
   };
@@ -350,7 +351,7 @@ export function inviteText(f: RecruitForm, parts: InviteParts) {
   const name = GAMES[f.game].name;
   const lines = [`【${name}】一緒に遊べる人募集！`];
   const detail: string[] = [];
-  if (parts.when) detail.push(f.when === '未定' ? '日時は相談' : `${f.when} ${f.time}〜`);
+  if (parts.when) detail.push(formatWhen(f.when, f.time));
   if (parts.need) detail.push(`あと${f.need}人`);
   if (detail.length) lines.push(detail.join(' ・ '));
   const cond: string[] = [];

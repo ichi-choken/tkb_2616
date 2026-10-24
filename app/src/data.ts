@@ -175,3 +175,8 @@ export function checkGameId(value: string) {
 }
 // いつも遊ぶ時間帯は24時間表記（ADR-35）
 export const isTime = (v: string) => /^([01]?\d|2[0-9]):[0-5]\d$/.test(v);
+
+// アドレスや入力から来た文字が、見本の人・ゲームの目印かどうか。
+// in だと toString などの組み込みの名前も当たってしまうので、自分の持つキーだけを見る
+export const isPersonId = (id: string | undefined): id is PersonId => !!id && Object.hasOwn(PEOPLE, id);
+export const isGameTag = (tag: string | undefined): tag is GameTag => !!tag && Object.hasOwn(GAMES, tag);

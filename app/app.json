@@ -28,7 +28,8 @@
       "baseUrl": "/tkb_2616"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "@react-native-community/datetimepicker"
     ]
   }
 }
