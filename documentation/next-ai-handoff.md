@@ -149,7 +149,7 @@ npm run doctor:config
 
 - ②が指定するチーム用の開発・本番環境、公開用キー。追加SQLは②が `supabase/migrations/20261024063000〜063300` に取り込み済み。
 - Discord/Google/AppleのOAuth設定、Steam custom provider設定、Steam/Discord/IGDBの実API接続。提供元の設定・権限確認は未完了。
-- Steam更新ワーカーの定期起動。コードがあってもジョブは稼働していない。1分ごとの起動で永続化した次回処理時刻を判定する設計。
+- Steam更新ワーカーの定期起動。2026-10-25 に開発用（shumitomo-dev）で Supabase Cron を入れた（`scripts/setup-project.mjs`）。デモ用は同じコマンドで入れる。1分ごとの起動で永続化した次回処理時刻を判定する設計。
 - 通知方式 **Q-30未決**。Pushは`EXPO_PUBLIC_ENABLE_PUSH=false`、`NOTIFICATION_TRANSPORT=disabled`。決定後に②のイベント、端末設定、配送・receipt再確認を接続。
 - 公開先、公開URL、SPA callback、EAS所有者・project ID・iOS/Android識別子、署名・公開手順の準備。
 - 公開環境でログイン→募集→応募→承認→合流、解除・再試行・古い通知タップなどの通し確認。

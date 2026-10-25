@@ -54,7 +54,7 @@
 - Steamの任意連携解除は `integration_unlink`。取得情報・暗号化トークン・認証試行を削除し、進行中の結果を無効化する。プロフィールの手入力や募集・成立の記録を削除しない。AuthのSteamログインidentityをこの関数で削除しない。
 - 保存するDiscordのアカウント情報はIDのみ。名前・アイコン・メール・作成時期をスナップショットへ足さない。認証の維持に使う暗号化トークンと処理時刻は別扱い。
 - ログイン用の一時テーブルはクライアントからアクセスさせない。codeはPKCE検証に成功した1回だけ消費する。無効な検証値で正しいcodeを消費させない。
-- Steamは連携完了時に取得し、その後は `integration-sync` が永続化した `next_attempt_at` を読んで処理する。アプリを開いていなくても動くよう、チーム環境で1分ごとにワーカーを呼ぶジョブを設定する。ワーカーキーはVault等で保管する。秘密をSQLファイルやGitへ書かない。
+- Steamは連携完了時に取得し、その後は `integration-sync` が永続化した `next_attempt_at` を読んで処理する。アプリを開いていなくても動くよう、Supabase Cron が1分ごとにワーカーを呼ぶ（`supabase/cron/integration-sync.sql`）。呼び先とワーカーキーは Vault に置き、SQLファイルやGitへ書かない。手元のテスト（PGlite）に pg_cron と Vault が無いので、マイグレーションにはしていない。
 - ワーカーは `POST /functions/v1/integration-sync`、ヘッダーは `x-integration-worker-key`。1回最大4件。利用者数が増えたら未処理件数と所要時間を見て起動数を調整する。外部APIのRetry-Afterを短縮しない。
 - 募集・成立・通知対象者の判断は②の関数が行う。③はそのイベントを配送する。②のアプリ内通知をPushの成功・失敗で消さない。
 - ローカルポートは②の553xxを正として統合する。旧543xx設定へ戻さない。
@@ -89,6 +89,8 @@
 | pkce_enabled | `true` |
 | email_optional | `true`。Steamからメールは取れない |
 | scopes | 空配列。userinfoは検証済みSteamIDだけ |
+
+クラウドのプロジェクト（開発用・デモ用）への設定は、`node scripts/setup-project.mjs <プロジェクトのref> [--app-url <公開先>]` でまとめて入れる。Edge Functions、秘密の値（`.env.edge.local` の値の入った行）、Cron 用の Vault、Cron、下の Steam でログインを入れ、DB の変更が当たっているかを確かめる。DB の変更を当てるのは `--with-db` を付けたときだけ。残る手作業（Redirect URLs、Discord・Google）は最後に出る。
 
 管理画面の Manual configuration は、OAuth2 でも Issuer URL を必須にしていて作れない（2026-10-25）。`node scripts/setup-steam-login.mjs <プロジェクトのref>` で、管理用 API から上の値で作る（既にあれば直す）。Client Secret は `.env.edge.local` の値を使い、表示しない。
 
