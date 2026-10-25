@@ -28,7 +28,7 @@ export type LiveScreens = Partial<Record<'recruit' | 'create' | 'requests' | 'li
 
 type ScreenOptions = { settingsScreen: ComponentType; liveScreens?: LiveScreens; modeLabel?: string };
 
-export function ShumitomoApp({ settingsScreen = SettingsScreen, liveScreens, modeLabel }: Omit<ScreenOptions, 'settingsScreen'> & { settingsScreen?: ComponentType }) {
+export function ShumitomoApp({ settingsScreen = SettingsScreen, liveScreens, modeLabel, integration: Integration }: Omit<ScreenOptions, 'settingsScreen'> & { settingsScreen?: ComponentType; integration?: ComponentType }) {
   const { design } = useLayout();
   const [loaded] = useFonts({
     DelaGothicOne_400Regular,
@@ -40,6 +40,7 @@ export function ShumitomoApp({ settingsScreen = SettingsScreen, liveScreens, mod
   return (
     <SafeAreaProvider>
       <StoreProvider>
+        {Integration ? <Integration /> : null}
         <Shell settingsScreen={settingsScreen} liveScreens={liveScreens} modeLabel={modeLabel} />
         <StatusBar style={design.dark ? 'light' : 'dark'} />
       </StoreProvider>

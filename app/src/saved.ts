@@ -35,7 +35,7 @@ export function loadSaved(fresh: State): State {
 
   if (isObj(saved.customGames)) {
     for (const [tag, g] of Object.entries(saved.customGames)) {
-      if (tag.startsWith('custom:') && isObj(g) && typeof g.name === 'string') GAMES[tag] = g as Game;
+      if ((tag.startsWith('custom:') || /^steam:[1-9][0-9]*$/.test(tag)) && isObj(g) && typeof g.name === 'string') GAMES[tag] = g as Game;
     }
   }
 
@@ -70,7 +70,7 @@ export function loadSaved(fresh: State): State {
 
 export function saveState(s: State) {
   const customGames: Record<GameTag, Game> = {};
-  for (const [tag, g] of Object.entries(GAMES)) if (tag.startsWith('custom:')) customGames[tag] = g;
+  for (const [tag, g] of Object.entries(GAMES)) if ((tag.startsWith('custom:') || /^steam:[1-9][0-9]*$/.test(tag))) customGames[tag] = g;
   const savedAt = new Date().toISOString();
   const data: Saved = {
     v: 1,
@@ -87,6 +87,6 @@ export function saveState(s: State) {
 // 「最初から」：この端末に残したものも消す
 export function clearSaved() {
   removeItem(KEY);
-  for (const tag of Object.keys(GAMES)) if (tag.startsWith('custom:')) delete GAMES[tag];
+  for (const tag of Object.keys(GAMES)) if ((tag.startsWith('custom:') || /^steam:[1-9][0-9]*$/.test(tag))) delete GAMES[tag];
   lastSavedAt = null;
 }
