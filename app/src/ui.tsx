@@ -334,7 +334,7 @@ function StepSlider({ labels, value, color, onChange, label, valueText }: {
             <Pressable key={i} onPress={() => onChange(i)} accessibilityRole="radio"
               accessibilityLabel={`${label}：${labels[i]}`} accessibilityState={{ checked: i === value }}
               onFocus={() => setFocusedIndex(i)} onBlur={() => setFocusedIndex(null)}
-              style={({ pressed }) => ({ flex: 1, height: '100%', outlineWidth: 0, borderRadius: s(4), backgroundColor: pressed ? C.accentSoft : 'transparent' })} />
+              style={{ flex: 1, height: '100%', outlineWidth: 0, backgroundColor: 'transparent' }} />
           ))}
         </View> : null}
       </View>
