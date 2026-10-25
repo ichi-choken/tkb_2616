@@ -13,17 +13,61 @@ const library = (games = [
   { appId: 1097150, name: 'Fall Guys', playtimeMinutes: null, recentPlaytimeMinutes: null },
 ]): SteamLibrary => ({ status: 'available', source: 'steam', fetchedAt: '2026-10-25T03:00:00Z', games });
 
-test('imports Steam titles into the existing cards, adopts matching PC games and preserves other platforms', () => {
+test('successful Steam import replaces initial demo games with real library cards', () => {
   const profile = fresh();
   importSteamGames(profile, library());
-  assert.equal(profile.games.length, ME.games.length + 2);
-  assert.equal(profile.games.find(game => game.tag === 'apex')?.steam?.hours, 10.5);
-  assert.equal(profile.games.find(game => game.tag === 'apex')?.heat, 4);
-  assert.equal(profile.games.find(game => game.tag === 'fallguys')?.platform, 'PlayStation');
+  assert.equal(profile.games.length, 3);
+  assert.equal(profile.games.some(game => game.demo || ME.games.some(seed => seed.tag === game.tag)), false);
+  assert.equal(profile.games.find(game => game.steam?.appId === 1172470)?.steam?.hours, 10.5);
   const added = profile.games.find(game => game.steam?.appId === 646570)!;
   assert.deepEqual([added.platform, added.skill, added.heat, added.steam?.hours], ['PC（Steam）', 5, 2, 0]);
   assert.equal(profile.games.find(game => game.steam?.appId === 1097150)?.steam?.hours, null);
   assert.equal(GAMES[added.tag]?.name, 'Slay the Spire');
+});
+
+test('manual games remain and a matching manual PC entry keeps its settings', () => {
+  const profile = fresh();
+  profile.games = [
+    { demo: false, tag: 'apex', platform: 'PC（Steam）', heat: 1, skill: 8 },
+    { demo: false, tag: 'fallguys', platform: 'PlayStation', heat: 1, skill: 3 },
+  ];
+  importSteamGames(profile, library());
+  assert.equal(profile.games.length, 4);
+  assert.equal(profile.games.find(game => game.tag === 'apex')?.steam?.hours, 10.5);
+  assert.equal(profile.games.find(game => game.tag === 'apex')?.skill, 8);
+  assert.equal(profile.games.find(game => game.tag === 'fallguys')?.platform, 'PlayStation');
+});
+
+test('previously imported profiles drop legacy demo cards but preserve real Steam choices', () => {
+  const profile = fresh();
+  profile.games.forEach(game => { delete game.demo; });
+  const apex = profile.games.find(game => game.tag === 'apex')!;
+  apex.steam = { appId: 1172470, name: 'Apex Legends', hours: 10, updated: '2026-10-24' };
+  apex.skill = 9; apex.heat = 0;
+  profile.steamImportedAppIds = [1172470];
+  importSteamGames(profile, library());
+  assert.equal(profile.games.length, 3);
+  assert.equal(profile.games.some(game => game.tag === 'splatoon3' || game.tag === 'fallguys'), false);
+  assert.deepEqual([apex.skill, apex.heat, apex.steam.hours], [9, 0, 10.5]);
+});
+
+test('legacy cleanup happens once, survives reload, and keeps later manual additions', async () => {
+  const values = new Map<string, string>();
+  const storage: ProfileStorage = { getItem: async k => values.get(k) ?? null, setItem: async (k,v) => { values.set(k,v); }, removeItem: async k => { values.delete(k); } };
+  const repository = createProfileRepository(storage);
+  await repository.load();
+  await repository.edit(profile => {
+    profile.games.forEach(game => { delete game.demo; });
+    importSteamGames(profile, library([]));
+  });
+  const restored = await createProfileRepository(storage).load();
+  assert.equal(restored.games.length, 0);
+  assert.equal(restored.steamDemoGamesCleared, true);
+  const manual = structuredClone(ME.games[1]!);
+  delete manual.demo;
+  restored.games.push(manual);
+  importSteamGames(restored, library([]));
+  assert.deepEqual(restored.games, [manual]);
 });
 
 test('refresh updates time and renamed titles without duplicates, overwriting personal choices, or resurrecting deleted games', () => {
