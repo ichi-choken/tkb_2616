@@ -13,7 +13,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "typecheck": "tsc --noEmit && tsc --noEmit --project tsconfig.auth.json",
-    "test:auth": "node --test tests/*.test.ts",
+    "test:auth": "npm --prefix packages/integrations run build && node --test tests/*.test.ts tests/*.test.mjs",
     "test:integrations": "npm --prefix packages/integrations test",
     "test": "npm run test:auth && npm run test:integrations",
     "build:web": "expo export --platform web",
@@ -23,7 +23,8 @@
     "build:native": "expo export --platform ios --platform android --output-dir dist-native",
     "doctor:config": "node --env-file-if-exists=.env --env-file-if-exists=.env.edge.local scripts/check-config.mjs",
     "setup:secrets": "node scripts/create-local-secrets.mjs",
-    "typecheck:frontend": "tsc --noEmit --project app/tsconfig.json"
+    "typecheck:frontend": "tsc --noEmit --project app/tsconfig.json",
+    "start:local": "npm --prefix packages/integrations run build && npm run build:web && node scripts/serve-local.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/dela-gothic-one": "0.4.1",

@@ -1,6 +1,6 @@
 // 設定：アカウント（ログイン）と、Steam・Discordとの連携（account-1〜12、server-41・62〜64・75）
 // デモの連携・表示設定はプロフィールと同じ状態を参照する
-import { useSyncExternalStore } from 'react';
+import { useSyncExternalStore, type ReactNode } from 'react';
 import { Platform, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { savedInfo } from '../saved';
@@ -49,7 +49,7 @@ const LOGIN_ICON = { discord: 'logo-discord', google: 'logo-google', steam: 'log
 
 /* ---------- 画面 ---------- */
 
-export function SettingsScreen() {
+export function SettingsScreen({ accountPanel, steamOnly = false }: { accountPanel?: ReactNode; steamOnly?: boolean }) {
   const { go, copy, open } = useStore();
   const st = useSettings();
   const inApp = st.inApp || IN_APP_UA;
@@ -74,8 +74,8 @@ export function SettingsScreen() {
   const left = (
     <>
       {inApp ? <BrowserCard onOpen={openInBrowser} /> : null}
-      <AccountBlock inApp={inApp} onOpenBrowser={openInBrowser} />
-      <Block title="あなたの信頼の目安">
+      {accountPanel ?? <AccountBlock inApp={inApp} onOpenBrowser={openInBrowser} />}
+      <Block title={accountPanel ? "あなたの信頼の目安（デモ）" : "あなたの信頼の目安"}>
         <Card pad>
           <Stack gap={6}>
             <Trust value={trustParts.join(' / ') || null} />
@@ -94,13 +94,12 @@ export function SettingsScreen() {
 
   const right = (
     <>
-      <LinkBlock service="steam" inApp={inApp} onOpenBrowser={openInBrowser} />
-      <LinkBlock service="discord" inApp={inApp} onOpenBrowser={openInBrowser} />
+      {!accountPanel ? <LinkBlock service="steam" inApp={inApp} onOpenBrowser={openInBrowser} /> : null}
+      {!steamOnly ? <LinkBlock service="discord" inApp={inApp} onOpenBrowser={openInBrowser} /> : null}
       <DataBlock />
       <Card pad>
         <Stack gap={6}>
           <Txt size={13} weight="bold">このアプリについて</Txt>
-          <Note>パッケージ画像はSteam・任天堂の公式ページからの見本です。</Note>
           <Note>利用規約とプライバシーポリシーは、公開前に用意します。出会い目的の利用と、連絡先の交換は禁止です。</Note>
           <TextButton label="IGDB.com（ゲーム検索の提供元）" onPress={() => open('https://www.igdb.com/')} />
         </Stack>
@@ -111,7 +110,7 @@ export function SettingsScreen() {
   return (
     <Stack>
       <AppBar title="設定" onBack={() => go('profile')} />
-      <Note color={C.warn}>設定の画面デモです。ログイン・連携・取得値はすべて見本で、外部サービスには接続しません。</Note>
+      <Note color={C.warn}>{accountPanel ? 'Steamは実際のログインと取得値です。DB未接続の機能はデモ表示です。' : '設定の画面デモです。ログイン・連携・取得値はすべて見本で、外部サービスには接続しません。'}</Note>
       <Cols even left={left} right={right} />
     </Stack>
   );

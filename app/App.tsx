@@ -26,7 +26,9 @@ export default function App() {
 // 接続先があるとき、募集・一覧・参加の画面を本物のデータの画面に差し替える（ルートの src/live/screens.tsx）
 export type LiveScreens = Partial<Record<'recruit' | 'create' | 'requests' | 'list' | 'matched', ComponentType<{ params: Record<string, string> }>>>;
 
-export function ShumitomoApp({ settingsScreen = SettingsScreen, liveScreens }: { settingsScreen?: ComponentType; liveScreens?: LiveScreens }) {
+type ScreenOptions = { settingsScreen: ComponentType; liveScreens?: LiveScreens; modeLabel?: string };
+
+export function ShumitomoApp({ settingsScreen = SettingsScreen, liveScreens, modeLabel }: Omit<ScreenOptions, 'settingsScreen'> & { settingsScreen?: ComponentType }) {
   const { design } = useLayout();
   const [loaded] = useFonts({
     DelaGothicOne_400Regular,
@@ -38,14 +40,14 @@ export function ShumitomoApp({ settingsScreen = SettingsScreen, liveScreens }: {
   return (
     <SafeAreaProvider>
       <StoreProvider>
-        <Shell settingsScreen={settingsScreen} liveScreens={liveScreens} />
+        <Shell settingsScreen={settingsScreen} liveScreens={liveScreens} modeLabel={modeLabel} />
         <StatusBar style={design.dark ? 'light' : 'dark'} />
       </StoreProvider>
     </SafeAreaProvider>
   );
 }
 
-function Shell({ settingsScreen, liveScreens }: { settingsScreen: ComponentType; liveScreens?: LiveScreens }) {
+function Shell({ settingsScreen, liveScreens, modeLabel }: ScreenOptions) {
   const { s: st } = useStore();
   const { s, wide } = useLayout();
   const route = resolveRoute(st);
@@ -58,7 +60,7 @@ function Shell({ settingsScreen, liveScreens }: { settingsScreen: ComponentType;
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: C.bg }}>
-      <DemoBar />
+      <DemoBar modeLabel={modeLabel} />
       <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: s(24) }} keyboardShouldPersistTaps="handled">
         <View style={{ width: '100%', maxWidth: 1320, alignSelf: 'center', paddingHorizontal: s(wide ? 24 : 14) }}>
           <Screen settingsScreen={settingsScreen} liveScreens={liveScreens} />
@@ -70,7 +72,7 @@ function Shell({ settingsScreen, liveScreens }: { settingsScreen: ComponentType;
   );
 }
 
-function Screen({ settingsScreen: Settings, liveScreens }: { settingsScreen: ComponentType; liveScreens?: LiveScreens }) {
+function Screen({ settingsScreen: Settings, liveScreens }: ScreenOptions) {
   const { s: st } = useStore();
   const Live = liveScreens?.[st.route.name as keyof LiveScreens];
   if (Live) return <Live params={st.route.params ?? {}} />;
@@ -90,7 +92,7 @@ function Screen({ settingsScreen: Settings, liveScreens }: { settingsScreen: Com
 
 /* ---------- デモ用の帯 ---------- */
 
-function DemoBar() {
+function DemoBar({ modeLabel }: { modeLabel?: string }) {
   const { reset, go, confirm } = useStore();
   const { s, wide, design } = useLayout();
   const [showDesigns, setShowDesigns] = useState(false);
@@ -102,21 +104,21 @@ function DemoBar() {
             <Txt size={design.id === 'play' ? 19 : 18} weight={design.id === 'play' ? 'display' : 'bold'} style={{ letterSpacing: design.id === 'play' ? -1 : -0.4 }}>shumitomo</Txt>
           </Pressable>
           {wide ? <View style={{ flex: 1, alignItems: 'center' }}><DesignSwitcher /></View> : <View style={{ flex: 1 }} />}
-          {wide ? <Badge label="画面デモ" tone="rest" /> : null}
+          {wide ? <Badge label={modeLabel ?? "画面デモ"} tone="rest" /> : null}
           {!wide ? <Pressable onPress={() => setShowDesigns(value => !value)} accessibilityRole="button" accessibilityLabel="デザインを変更" accessibilityState={{ expanded: showDesigns }} hitSlop={4}
             style={({ pressed }) => ({ width: s(36), height: s(36), alignItems: 'center', justifyContent: 'center', borderRadius: s(8), backgroundColor: pressed || showDesigns ? C.accentSoft : 'transparent' })}>
             <Feather name={design.dark ? 'moon' : 'sun'} size={s(18)} color={C.accent} />
           </Pressable> : null}
-          <Pressable onPress={async () => { if (await confirm('この端末に保存したプロフィールも最初の状態に戻しますか？')) { if (await reset()) resetSettings(); } }} accessibilityRole="button" accessibilityLabel="最初から" hitSlop={4}
+          {!modeLabel ? <Pressable onPress={async () => { if (await confirm('この端末に保存したプロフィールも最初の状態に戻しますか？')) { if (await reset()) resetSettings(); } }} accessibilityRole="button" accessibilityLabel="最初から" hitSlop={4}
             style={({ pressed }) => ({ width: s(32), height: s(32), alignItems: 'center', justifyContent: 'center', borderRadius: s(10), backgroundColor: pressed ? C.accentSoft : 'transparent' })}>
             <Feather name="rotate-ccw" size={s(17)} color={C.muted} />
-          </Pressable>
+          </Pressable> : null}
           <Pressable onPress={() => go('settings')} accessibilityRole="button" accessibilityLabel="設定" hitSlop={4}
             style={({ pressed }) => ({ width: s(34), height: s(34), alignItems: 'center', justifyContent: 'center', borderRadius: s(6), backgroundColor: pressed ? C.surface : 'transparent' })}>
             <Feather name="settings" size={s(17)} color={C.ink} />
           </Pressable>
         </Row>
-        {!wide && showDesigns ? <Row gap={8}><DesignSwitcher onSelect={() => setShowDesigns(false)} /><Badge label="デモ" tone="rest" /></Row> : null}
+        {!wide && showDesigns ? <Row gap={8}><DesignSwitcher onSelect={() => setShowDesigns(false)} /><Badge label={modeLabel ?? "デモ"} tone="rest" /></Row> : null}
       </View>
     </View>
   );
