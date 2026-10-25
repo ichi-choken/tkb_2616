@@ -1,5 +1,5 @@
 // 画面をまたいで使う部品
-import { type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Image, Pressable, Text, TextInput, View, type StyleProp, type TextInputProps, type TextStyle, type ViewStyle } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Feather from '@expo/vector-icons/Feather';
@@ -286,11 +286,11 @@ export function Chip({ label, locked, common, children }: { label: string; locke
   return (
     <Row gap={4} style={{
       borderWidth: 1, borderStyle: locked ? 'dashed' : 'solid', borderColor: common ? C.ok : C.line,
-      backgroundColor: common ? C.okBg : C.card, borderRadius: 999, paddingVertical: s(2), paddingHorizontal: s(11),
+      backgroundColor: common ? C.okBg : C.card, borderRadius: 999, paddingVertical: s(2), paddingHorizontal: s(11), maxWidth: '100%',
     }}>
       {common ? <Feather name="check" size={s(12)} color={C.ok} /> : null}
       {locked ? <Feather name="lock" size={s(12)} color={C.muted} /> : null}
-      <Txt size={13} weight={locked ? 'regular' : 'bold'} color={locked ? C.muted : C.ink}>{label}</Txt>
+      <Txt size={13} weight={locked ? 'regular' : 'bold'} color={locked ? C.muted : C.ink} style={{ flexShrink: 1 }}>{label}</Txt>
       {children}
     </Row>
   );
@@ -316,6 +316,7 @@ function StepSlider({ labels, value, color, onChange, label, valueText }: {
   label: string; valueText: string;
 }) {
   const { s } = useLayout();
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const count = labels.length;
   const fraction = Math.max(0, Math.min(count - 1, value)) / (count - 1);
   const position = `${fraction * 100}%` as const;
@@ -332,12 +333,14 @@ function StepSlider({ labels, value, color, onChange, label, valueText }: {
           {Array.from({ length: count }, (_, i) => (
             <Pressable key={i} onPress={() => onChange(i)} accessibilityRole="radio"
               accessibilityLabel={`${label}：${labels[i]}`} accessibilityState={{ checked: i === value }}
-              style={({ pressed }) => ({ flex: 1, height: '100%', borderRadius: s(4), backgroundColor: pressed ? C.accentSoft : 'transparent' })} />
+              onFocus={() => setFocusedIndex(i)} onBlur={() => setFocusedIndex(null)}
+              style={{ flex: 1, height: '100%', outlineWidth: 0, backgroundColor: 'transparent' }} />
           ))}
         </View> : null}
       </View>
       <Row gap={0}>
-        {labels.map((text, i) => <Txt key={i} size={11} color={C.muted} style={{ flex: 1, textAlign: 'center' }}>{text}</Txt>)}
+        {labels.map((text, i) => <Txt key={i} size={11} color={focusedIndex === i ? color : C.muted}
+          style={{ flex: 1, textAlign: 'center', textDecorationLine: focusedIndex === i ? 'underline' : 'none' }}>{text}</Txt>)}
       </Row>
     </Stack>
   );

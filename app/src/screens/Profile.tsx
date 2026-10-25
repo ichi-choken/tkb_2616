@@ -1,5 +1,5 @@
 // プロフィール：自分のプロフィール、編集、他の人のプロフィール、IDで探す
-import { useState, useSyncExternalStore } from 'react';
+import { useRef, useState, useSyncExternalStore } from 'react';
 import { Pressable, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import {
@@ -10,10 +10,11 @@ import { useStore } from '../store';
 import { demoSettings } from '../demo-settings';
 import { steamProfileVisible } from '../demo-settings-state';
 import { AddModal, type AddKind } from '../AddModal';
+import { FitModal } from '../FitModal';
 import { C, useLayout } from '../theme';
 import {
   AppBar, Art, Avatar, Block, Card, Chip, Cols, Divider, Empty, Field, Grid, HeatSlider, HeatTag, MainButton,
-  HeatDots, MiniButton, Note, Opts, PillButton, RightsNote, Row, SkillStepper, Stack, SubButton, TextButton, Trust, Txt,
+  MiniButton, Note, Opts, PillButton, RightsNote, Row, SkillSlider, Stack, SubButton, TextButton, Trust, Txt,
 } from '../ui';
 
 /* ---------- 自分のプロフィール ---------- */
@@ -29,15 +30,61 @@ function ProfileView() {
   const [adding, setAdding] = useState<AddKind | null>(null);
   const { wide, width, s, design } = useLayout();
   const p = st.me;
+  const actionPending = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [removing, setRemoving] = useState<{ kind: AddKind; key: string; name: string } | null>(null);
+  const [removeError, setRemoveError] = useState(false);
+  const closeRemove = () => { if (!actionPending.current) { setRemoving(null); setRemoveError(false); } };
+  const askRemove = (kind: AddKind, key: string, name: string) => { setRemoveError(false); setRemoving({ kind, key, name }); };
 
-  // 熱量・実力はスライダーでその場で直せる（profile-5）。部品ごとに保存する（ui-1）
-  const setGame = async (i: number, key: 'heat' | 'skill', value: number) => {
-    if (!(await editProfile(profile => { profile.games[i][key] = value; }))) return;
+  // 項目を削除しても、別の項目へ変更がずれないように名前・タグで更新する。
+  const setGame = async (tag: string, key: 'heat' | 'skill', value: number) => {
+    if (!(await editProfile(profile => {
+      const game = profile.games.find(item => item.tag === tag);
+      if (game) game[key] = value;
+    }))) return;
     toast(key === 'heat' ? `熱量を「${HEAT[value]}」にしました` : `実力を ${value} にしました`);
   };
-  const setHobbyHeat = async (i: number, value: number) => {
-    if (!(await editProfile(profile => { profile.hobbies[i].heat = value; }))) return;
+  const setHobbyHeat = async (name: string, value: number) => {
+    if (!(await editProfile(profile => {
+      const hobby = profile.hobbies.find(item => item.name === name);
+      if (hobby) hobby.heat = value;
+    }))) return;
     toast(`熱量を「${HEAT[value]}」にしました`);
+  };
+  const remove = async () => {
+    if (actionPending.current || !removing) return;
+    const { kind, key, name } = removing;
+    actionPending.current = true;
+    setBusy(true);
+    try {
+      setRemoveError(false);
+      const saved = await editProfile(profile => {
+        if (kind === 'games') profile.games = profile.games.filter(item => item.tag !== key);
+        else if (kind === 'hobbies') profile.hobbies = profile.hobbies.filter(item => item.name !== key);
+        else profile.likes = profile.likes.filter(item => item.name !== key);
+      });
+      if (saved) { setRemoving(null); toast(`「${name}」を削除しました`); }
+      else setRemoveError(true);
+    } finally {
+      actionPending.current = false;
+      setBusy(false);
+    }
+  };
+  const setLikePrivacy = async (name: string, locked: boolean) => {
+    if (actionPending.current) return;
+    actionPending.current = true;
+    setBusy(true);
+    try {
+      const saved = await editProfile(profile => {
+        const like = profile.likes.find(item => item.name === name);
+        if (like) like.locked = locked;
+      });
+      if (saved) toast(`「${name}」を${locked ? '非公開' : '公開'}にしました`);
+    } finally {
+      actionPending.current = false;
+      setBusy(false);
+    }
   };
 
   const hobbies = (
@@ -46,7 +93,8 @@ function ProfileView() {
         {p.hobbies.length ? p.hobbies.map((h, i) => (
           <View key={h.name}>
             {i > 0 ? <Divider /> : null}
-            <HobbyRow name={h.name} heat={h.heat} onHeat={(v) => setHobbyHeat(i, v)} />
+            <HobbyRow name={h.name} heat={h.heat} onHeat={(v) => setHobbyHeat(h.name, v)}
+              actions={<ProfileRemoveButton name={h.name} disabled={busy} onPress={() => askRemove('hobbies', h.name, h.name)} />} />
           </View>
         )) : <Empty title="趣味がまだ入っていません" text="「＋ 追加」から入れられます。" />}
       </Card>
@@ -56,10 +104,15 @@ function ProfileView() {
     <Block title="好きなもの" right={<MiniButton label="＋ 追加" onPress={() => setAdding('likes')} />}>
       <Card pad>
         {p.likes.length ? (
-          <Row gap={6} wrap>{p.likes.map((l) => <Chip key={l.name} label={l.name} locked={l.locked} />)}</Row>
+          <Row gap={6} wrap>{p.likes.map((l) => (
+            <Chip key={l.name} label={l.name} locked={l.locked}>
+              <LikePrivacyButton name={l.name} locked={!!l.locked} disabled={busy} onPress={() => setLikePrivacy(l.name, !l.locked)} />
+              <ProfileRemoveButton name={l.name} disabled={busy} onPress={() => askRemove('likes', l.name, l.name)} />
+            </Chip>
+          ))}</Row>
         ) : <Empty title="好きなものがまだ入っていません" text="「＋ 追加」から入れられます。" />}
       </Card>
-      <Note>鍵をかけたものは自分だけに見えます。鍵は「編集」でかけられます。</Note>
+      <Note>「非公開」にしたものは自分だけに見えます。ボタンを押すと切り替えられます。</Note>
     </Block>
   );
 
@@ -89,11 +142,12 @@ function ProfileView() {
         </View>
       </Card>
       <Block title="ゲーム" count={p.games.length} right={<MiniButton label="＋ 追加" onPress={() => setAdding('games')} />}>
-        {p.games.length ? <Grid columns={wide ? (width >= 1100 ? 3 : 2) : 1}>{p.games.map((g, i) => (
+        {p.games.length ? <Grid columns={wide ? (width >= 1100 ? 3 : 2) : 1}>{p.games.map((g) => (
           <GameCard key={g.tag} g={g} showSteam={steamProfileVisible(settings)}
             onRecruit={() => { update((d) => { d.role = 'rec'; }); go('create', { game: g.tag }); }}
-            onSkill={(v) => setGame(i, 'skill', v)}
-            onHeat={(v) => setGame(i, 'heat', v)} />
+            onSkill={(v) => setGame(g.tag, 'skill', v)}
+            onHeat={(v) => setGame(g.tag, 'heat', v)}
+            actions={<ProfileRemoveButton name={GAMES[g.tag].name} disabled={busy} onPress={() => askRemove('games', g.tag, GAMES[g.tag].name)} />} />
         ))}</Grid> : (
           <Card><Empty title="ゲームがまだ入っていません" text="ゲームを入れると、合う募集が見つかりやすくなります。" button={{ label: '＋ ゲームを追加', onPress: () => setAdding('games') }} /></Card>
         )}
@@ -101,6 +155,17 @@ function ProfileView() {
       <Cols even left={hobbies} right={likes} />
       <RightsNote onOpen={open} />
       <AddModal kind={adding} onClose={() => setAdding(null)} />
+      {removing ? <FitModal title="プロフィールから削除" onClose={closeRemove} footer={
+        <Row style={{ justifyContent: 'flex-end' }}>
+          <SubButton label="キャンセル" disabled={busy} onPress={closeRemove} />
+          <SubButton danger label={busy ? '削除中…' : '削除する'} disabled={busy} onPress={remove} />
+        </Row>
+      }>
+        <Stack gap={8}>
+          <Txt>「{removing.name}」を削除しますか？</Txt>
+          {removeError ? <Txt color={C.danger}>保存できませんでした。もう一度お試しください。</Txt> : null}
+        </Stack>
+      </FitModal> : null}
     </Stack>
   );
 }
@@ -136,44 +201,69 @@ function TimesCard({ times, region, embedded }: { times: { start: string; end: s
   return embedded ? content : <Card pad>{content}</Card>;
 }
 
-// ゲーム1つ。画像の右に、名前・機種・実力・熱量を詰めて並べる。自分のゲームなら、熱量の点と実力の −／＋ でその場で変えられる
-function GameCard({ g, onRecruit, onSkill, onHeat, showSteam = true }: {
-  g: MyGame; onRecruit?: () => void; onSkill?: (v: number) => void; onHeat?: (v: number) => void; showSteam?: boolean;
+// ゲーム1つ。画像と基本情報の下に、目盛りつきの熱量・実力ゲージを並べる。
+function GameCard({ g, onRecruit, onSkill, onHeat, actions, showSteam = true }: {
+  g: MyGame; actions?: React.ReactNode; onRecruit?: () => void; onSkill?: (v: number) => void; onHeat?: (v: number) => void; showSteam?: boolean;
 }) {
   const { s } = useLayout();
   const meta = [g.platform, showSteam && g.steam ? `Steam ${g.steam.hours}時間` : null].filter(Boolean).join(' ・ ');
   return (
-    <Card style={{ paddingVertical: s(10), paddingHorizontal: s(12) }}>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Art tag={g.tag} size={36} />
-        <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-          <Row gap={6}>
-            <Txt size={15} weight="bold" numberOfLines={1} style={{ flex: 1, minWidth: 0 }}>{GAMES[g.tag].name}</Txt>
-            {onRecruit ? (
-              <Pressable onPress={onRecruit} accessibilityRole="link" accessibilityLabel={`${GAMES[g.tag].name}の募集を出す`} hitSlop={6}>
-                <Row gap={3} style={{ paddingHorizontal: s(4), minHeight: s(24) }}><Feather name="plus" size={s(14)} color={C.accent} /><Txt size={12} weight="bold" color={C.accent}>募集</Txt></Row>
-              </Pressable>
-            ) : null}
-          </Row>
-          <Row gap={10} wrap>
-            <Note style={{ flexShrink: 1 }}>{meta}</Note>
-            <SkillStepper value={g.skill} onChange={onSkill} />
-          </Row>
-          <HeatDots value={g.heat} onChange={onHeat} />
+    <Card style={{ paddingVertical: s(12), paddingHorizontal: s(12) }}>
+      <Stack gap={8}>
+        <Row gap={12}>
+          <Art tag={g.tag} size={36} />
+          <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
+            <Row gap={6}>
+              <Txt size={15} weight="bold" numberOfLines={1} style={{ flex: 1, minWidth: 0 }}>{GAMES[g.tag].name}</Txt>
+              {onRecruit ? (
+                <Pressable onPress={onRecruit} accessibilityRole="link" accessibilityLabel={`${GAMES[g.tag].name}の募集を出す`} hitSlop={6}>
+                  <Row gap={3} style={{ paddingHorizontal: s(4), minHeight: s(24) }}><Feather name="plus" size={s(14)} color={C.accent} /><Txt size={12} weight="bold" color={C.accent}>募集</Txt></Row>
+                </Pressable>
+              ) : null}
+              {actions}
+            </Row>
+            <Note>{meta}</Note>
+          </Stack>
+        </Row>
+        <Stack gap={0}>
+          <Row style={{ justifyContent: 'space-between' }}><Txt size={13} weight="bold">熱量</Txt><HeatTag value={g.heat} /></Row>
+          <HeatSlider value={g.heat} onChange={onHeat} />
         </Stack>
-      </Row>
+        <Stack gap={0}>
+          <Row><Txt size={13} weight="bold" style={{ flex: 1 }}>実力</Txt><Txt size={14} weight="bold">{g.skill}</Txt><Note>/ 9</Note></Row>
+          <SkillSlider value={g.skill} onChange={onSkill} />
+        </Stack>
+      </Stack>
     </Card>
   );
 }
 
-function HobbyRow({ name, heat, onHeat }: { name: string; heat: number; onHeat?: (v: number) => void }) {
+function HobbyRow({ name, heat, onHeat, actions }: { name: string; heat: number; onHeat?: (v: number) => void; actions?: React.ReactNode }) {
   const { s } = useLayout();
   return (
     <Stack gap={6} style={{ padding: s(12) }}>
-      <Row><Txt size={15} weight="bold" style={{ flex: 1 }}>{name}</Txt><HeatTag value={heat} /></Row>
+      <Row><Txt size={15} weight="bold" style={{ flex: 1 }}>{name}</Txt><HeatTag value={heat} />{actions}</Row>
       {onHeat ? <HeatSlider value={heat} onChange={onHeat} /> : null}
     </Stack>
   );
+}
+
+function ProfileRemoveButton({ name, onPress, disabled }: { name: string; onPress: () => void; disabled?: boolean }) {
+  const { s } = useLayout();
+  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={`${name}を削除`}
+    accessibilityState={{ disabled: !!disabled }}
+    style={({ pressed }) => ({ minWidth: s(32), minHeight: s(32), alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.45 : pressed ? 0.65 : 1 })}>
+    <Feather name="trash-2" size={s(15)} color={C.muted} />
+  </Pressable>;
+}
+
+function LikePrivacyButton({ name, locked, onPress, disabled }: { name: string; locked: boolean; onPress: () => void; disabled?: boolean }) {
+  const { s } = useLayout();
+  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button"
+    accessibilityLabel={`${name}を${locked ? '公開' : '非公開'}にする`} accessibilityState={{ disabled: !!disabled }}
+    style={({ pressed }) => ({ minHeight: s(32), justifyContent: 'center', paddingHorizontal: s(6), opacity: disabled ? 0.45 : pressed ? 0.65 : 1 })}>
+    <Txt size={12} color={locked ? C.muted : C.accent}>{locked ? '非公開' : '公開'}</Txt>
+  </Pressable>;
 }
 
 /* ---------- 編集 ---------- */
