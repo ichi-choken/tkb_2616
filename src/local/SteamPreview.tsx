@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import type { SteamLibrary } from '../../packages/integrations/src/steam';
+import { isSteamLibrary, publishSteamLibrary } from './steam-library';
 import { C, useLayout } from '../../app/src/theme';
 import { Badge, Block, Card, Grid, Note, Row, Stack, SubButton, Txt } from '../../app/src/ui';
 
@@ -32,9 +33,9 @@ export function SteamPreview() {
         if (!session.connected) { setLibrary(null); return; }
         const response = await fetch('/__steam/library.json', { cache: 'no-store', signal: controller.signal });
         if (!response.ok) throw new Error('unavailable');
-        const data: SteamLibrary = await response.json();
-        if (data.source !== 'steam' || !['available', 'unavailable'].includes(data.status)) throw new Error('invalid');
-        if (!controller.signal.aborted) setLibrary(data);
+        const data: unknown = await response.json();
+        if (!isSteamLibrary(data)) throw new Error('invalid');
+        if (!controller.signal.aborted) { setLibrary(data); publishSteamLibrary(data); }
       } catch {
         if (!controller.signal.aborted) { setLibrary(null); setError(true); }
       } finally {
@@ -56,7 +57,7 @@ export function SteamPreview() {
           {status.connected ? <SubButton label={loading ? '取得しています…' : '最新の情報を取得'} disabled={loading} onPress={() => { setLoading(true); setError(false); retry(value => value + 1); }} /> : null}
         </Row>
         <Txt size={16} weight="bold">Steamのゲームとプレイ時間</Txt>
-        <Note>Steam公式でログインしたアカウントのゲームを表示します。募集DBへのログインとは別です。</Note>
+        <Note>Steam公式でログインしたアカウントのゲームをプロフィールへ自動追加します。実力5・熱量「普通」は初期値で、カードから変更できます。募集DBへのログインとは別です。</Note>
         {!status.connected ? <SubButton label="Steamでログインしてゲームを表示" disabled={loading} onPress={() => window.location.assign('/__steam/start')} /> : <SubButton label="Steamからログアウト" disabled={loading} onPress={async () => {
           setLoading(true);
           try {

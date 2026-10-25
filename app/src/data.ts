@@ -72,11 +72,12 @@ export type MyGame = {
   platform: string;
   heat: number;
   skill: number;
-  steam?: { hours: number; updated: string };
+  steam?: { appId?: number; name?: string; hours: number | null; updated: string };
 };
 export type Hobby = { name: string; heat: number };
 export type Like = { name: string; locked?: boolean };
 export type Profile = {
+  steamImportedAppIds?: number[];
   nickname: string;
   appId: string;
   color: string;

@@ -3,6 +3,7 @@ import { SettingsScreen } from '../../app/src/screens/Settings';
 import { ConnectedSettingsScreen } from '../settings/ConnectedSettings';
 import { getSupabase } from '../lib/supabase';
 import { liveScreens } from '../live/screens';
+import { SteamProfileSync } from '../local/SteamProfileSync';
 import { SteamPreview } from '../local/SteamPreview';
 import { useLocalIntegrations } from '../local/useLocalIntegrations';
 
@@ -21,6 +22,7 @@ export default function Home() {
   // Only implemented DB screens replace their demo counterparts. A failed DB request
   // remains an error on the real screen; it must never look like a successful demo write.
   return <ShumitomoApp
+    integration={local ? SteamProfileSync : undefined}
     settingsScreen={configured ? (local ? SteamOnlyConnectedSettings : ConnectedSettingsScreen) : invalid ? ConnectedSettingsScreen : local ? LocalSettings : SettingsScreen}
     liveScreens={configured ? liveScreens : undefined}
     modeLabel={configured ? 'DB接続版' : local ? 'Steam実接続・ほかはデモ' : undefined}
