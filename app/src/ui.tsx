@@ -286,11 +286,11 @@ export function Chip({ label, locked, common, children }: { label: string; locke
   return (
     <Row gap={4} style={{
       borderWidth: 1, borderStyle: locked ? 'dashed' : 'solid', borderColor: common ? C.ok : C.line,
-      backgroundColor: common ? C.okBg : C.card, borderRadius: 999, paddingVertical: s(2), paddingHorizontal: s(11),
+      backgroundColor: common ? C.okBg : C.card, borderRadius: 999, paddingVertical: s(2), paddingHorizontal: s(11), maxWidth: '100%',
     }}>
       {common ? <Feather name="check" size={s(12)} color={C.ok} /> : null}
       {locked ? <Feather name="lock" size={s(12)} color={C.muted} /> : null}
-      <Txt size={13} weight={locked ? 'regular' : 'bold'} color={locked ? C.muted : C.ink}>{label}</Txt>
+      <Txt size={13} weight={locked ? 'regular' : 'bold'} color={locked ? C.muted : C.ink} style={{ flexShrink: 1 }}>{label}</Txt>
       {children}
     </Row>
   );
