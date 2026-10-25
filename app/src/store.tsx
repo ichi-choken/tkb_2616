@@ -8,8 +8,9 @@ import { formatWhen, todayISO } from './dates';
 import { clearSaved, loadSaved, saveState } from './saved';
 import {
   GAMES, HEAT, LISTINGS, ME, SAMPLE_REQUESTS,
-  type GameTag, type MyGame, type PersonId, type Profile,
+  type GameTag, type Listing, type MyGame, type PersonId, type Profile,
 } from './data';
+import { inviteLength, othersFor, parseShared, shareUrl, SHARED_ID } from './share-link';
 
 export type RouteName =
   | 'profile' | 'person' | 'search-id'
@@ -87,6 +88,8 @@ export type State = {
     result: ParResult;
     keep: boolean | null;
     friendAdded: boolean;
+    // 招待状のリンクから開いた募集
+    shared: Listing | null;
   };
   conn: {
     incoming: { from: PersonId; via: string; reasons: string[] }[];
@@ -129,7 +132,7 @@ function freshState(route: Route = { name: 'profile' }): State {
     },
     par: {
       sent: false, openJoin: null, listing: 'L1', gameId: '', idTouched: false,
-      saveToProfile: false, result: 'waiting', keep: null, friendAdded: false,
+      saveToProfile: false, result: 'waiting', keep: null, friendAdded: false, shared: null,
     },
     conn: {
       incoming: [{ from: 'sora', via: 'アプリIDから', reasons: ['同じスプラトゥーン3', '同じ地方'] }],
@@ -258,9 +261,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         d.rec.editing = false;
         d.rec.busy = false;
       }
+      // 招待状のリンクで開いたら、その募集を一番上にした一覧を、参加する立場で見せる
+      const shared = route.name === 'list' ? parseShared(route.params ?? {}) : null;
+      if (shared) {
+        Object.assign(d.par, { shared, listing: SHARED_ID, sent: false, openJoin: null, result: 'waiting', keep: null, friendAdded: false });
+        d.role = 'par';
+      }
       d.route = route;
     });
   }, [update]);
+
+  // 最初に開いたアドレスが招待状のリンクなら、保存してあった前の続きより優先する
+  useEffect(() => {
+    if (isWeb) setRoute(hashToRoute(window.location.hash));
+  }, [setRoute]);
 
   const go = useCallback((name: Route['name'], params?: Record<string, string>) => {
     const route = { name, params };
@@ -335,8 +349,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [editProfile]);
 
   const publish = useCallback(async (via: 'x' | 'threads' | 'line' | 'copy' | 'none') => {
-    const text = inviteText(s.rec.form, s.rec.parts);
-    if (via === 'x' && text.length > 140) {
+    const text = inviteText(s.rec.form, s.rec.parts, s.me);
+    if (via === 'x' && inviteLength(text) > 140) {
       toast('招待状が長すぎます。載せる項目を減らしてください');
       return;
     }
@@ -356,7 +370,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     else toast('募集を公開しました');
     // 公開が済むと、届いた参加希望の画面が開く（recruit-19）
     go('requests');
-  }, [s.rec.form, s.rec.parts, toast, update, open, copy, go, saveGameToProfile]);
+  }, [s.rec.form, s.rec.parts, s.me, toast, update, open, copy, go, saveGameToProfile]);
 
   const value = useMemo<Store>(() => ({
     s, update, go, toast, toastText, copy, open, confirm, reset, editProfile, saveGameToProfile, publish,
@@ -378,7 +392,7 @@ export function useStore() {
 }
 
 // 招待状は普通の募集の投稿と同じ見た目で、#ゲーム名募集 が入る（recruit-8, 9）
-export function inviteText(f: RecruitForm, parts: InviteParts) {
+export function inviteText(f: RecruitForm, parts: InviteParts, host: Pick<Profile, 'nickname' | 'color'>) {
   const name = GAMES[f.game].name;
   const lines = [`【${name}】一緒に遊べる人募集！`];
   const detail: string[] = [];
@@ -392,8 +406,14 @@ export function inviteText(f: RecruitForm, parts: InviteParts) {
   if (parts.heat) cond.push(`熱量：${HEAT[f.heat]}`);
   if (cond.length) lines.push(cond.join(' / '));
   lines.push(`#${name.replace(/\s/g, '')}募集`);
-  lines.push('https://shumitomo.jp/r/a8k2');
+  // リンクには載せない項目も入れる。開いた人の一覧では、募集の中身がすべて見える
+  lines.push(shareUrl(f, host));
   return lines.join('\n');
 }
 
-export const findListing = (id: string) => LISTINGS.find((l) => l.id === id) ?? LISTINGS[0];
+// 一覧に出る募集。リンクから開いたときは、その募集と同じゲームの募集
+export const listingsOf = (s: State): Listing[] => (s.par.shared ? [s.par.shared, ...othersFor(s.par.shared)] : LISTINGS);
+export const findListing = (s: State, id: string) => {
+  const all = listingsOf(s);
+  return all.find((l) => l.id === id) ?? all[0];
+};

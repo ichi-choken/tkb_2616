@@ -148,6 +148,8 @@ export type Listing = {
   skill: number;
   reasons: string[];
   via: string;
+  // 招待状のリンクから開いた募集では、募集した人は見本の人ではない
+  host?: Person;
 };
 
 // 参加する人が見る、同じゲームの募集（list-4：押したリンクの募集が一番上）

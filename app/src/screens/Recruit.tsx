@@ -6,6 +6,7 @@ import { UNDECIDED, formatWhen, todayISO } from '../dates';
 import { DateTimeField } from '../DateTimeField';
 import { fakeSave, inviteText, logJoin, newRecruitForm, useStore, type InviteParts, type RecStatus, type Request, type State } from '../store';
 import { createPendingSave } from '../pending-save';
+import { inviteLength } from '../share-link';
 import { C, useLayout } from '../theme';
 import {
   AppBar, Art, Avatar, Badge, Block, Card, Check, Cols, Divider, Empty, Field, HeatSlider, HeatTag, MainButton,
@@ -53,7 +54,10 @@ export function CreateScreen({ game }: { game?: string }) {
   }, [game]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setForm = (fn: (form: typeof f) => void) => update((d) => fn(d.rec.form));
-  const invite = inviteText(f, r.parts);
+  const invite = inviteText(f, r.parts, st.me);
+  const inviteLen = inviteLength(invite);
+  // 画面ではリンクを短く見せる。コピー・投稿するのは全部のリンク
+  const invitePreview = invite.replace(/https?:\/\/\S+/, (u) => `${u.replace(/^https:\/\//, '').slice(0, 40)}…`);
 
   const saveEdit = async () => {
     if (pendingSave.isPending()) return;
@@ -189,7 +193,7 @@ export function CreateScreen({ game }: { game?: string }) {
     </>
   ) : (
     <>
-      <Block title="招待状" right={<Note color={invite.length > 140 ? C.danger : C.muted}>{invite.length} / 140字</Note>}>
+      <Block title="招待状" right={<Note color={inviteLen > 140 ? C.danger : C.muted}>{inviteLen} / 140字</Note>}>
         <Card>
           <Row gap={6} wrap style={{ padding: s(12), paddingBottom: s(8) }}>
             <Txt size={12} weight="bold" color={C.muted}>載せる項目</Txt>
@@ -197,7 +201,7 @@ export function CreateScreen({ game }: { game?: string }) {
             {PARTS.map(([k, label]) => <Opt key={k} label={label} on={r.parts[k]} onPress={() => update((d) => { d.rec.parts[k] = !d.rec.parts[k]; })} />)}
           </Row>
           <View style={{ margin: s(12), marginTop: 0, padding: s(12), borderRadius: s(10), backgroundColor: C.bg }}>
-            <Txt size={13}>{invite}</Txt>
+            <Txt size={13}>{invitePreview}</Txt>
           </View>
         </Card>
       </Block>

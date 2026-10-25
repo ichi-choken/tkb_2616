@@ -1,6 +1,7 @@
 // アプリの状態を、この端末に自動で残す（家計簿アプリのように、閉じて開き直しても前の続きから使える）。
 // サーバーができるまでのデモ用。プロフィールは profile-storage.ts が別に残す。残すのは保存が済んだものだけで、編集中の下書きや、押している途中の状態は残さない
-import { GAMES, LISTINGS, type Game, type GameTag } from './data';
+import { GAMES, LISTINGS, isGameTag, type Game, type GameTag } from './data';
+import { othersFor } from './share-link';
 import { readItem, removeItem, writeItem } from './deviceStorage';
 import type { State } from './store';
 
@@ -51,7 +52,11 @@ export function loadSaved(fresh: State): State {
 
   // 名前の分からなくなったゲームは外す
   if (!(next.rec.form.game in GAMES)) next.rec = fresh.rec;
-  if (!LISTINGS.some((l) => l.id === next.par.listing)) next.par.listing = fresh.par.listing;
+  // 招待状のリンクから開いた募集は、形が合うときだけ持ち越す
+  const shared = isObj(next.par.shared) && isGameTag(next.par.shared.game) ? next.par.shared : null;
+  next.par.shared = shared;
+  const listings = shared ? [shared, ...othersFor(shared)] : LISTINGS;
+  if (!listings.some((l) => l.id === next.par.listing)) next.par.listing = fresh.par.listing;
 
   // 押している途中・編集の途中の状態は持ち越さない
   next.rec.busy = false;

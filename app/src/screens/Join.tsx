@@ -1,8 +1,9 @@
 // 参加する人：募集一覧、成立
 import { View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
-import { ENDED_LISTINGS, GAMES, LISTINGS, PEOPLE, checkGameId, type Listing } from '../data';
-import { fakeSave, findListing, logJoin, newRecruitForm, useStore } from '../store';
+import { GAMES, PEOPLE, checkGameId, type Listing } from '../data';
+import { fakeSave, findListing, listingsOf, logJoin, newRecruitForm, useStore } from '../store';
+import { endedFor, hostOf, matchOf } from '../share-link';
 import { C, useLayout } from '../theme';
 import {
   AppBar, Art, Avatar, Badge, Block, Card, Check, DemoButton, Divider, Empty, Field, Grid, HeatTag, MainButton,
@@ -15,13 +16,18 @@ import { InfoRow, JoinInfo, KeepRow } from './Recruit';
 export function ListScreen() {
   const { s: st, update, go, open } = useStore();
   const { s } = useLayout();
-  const pinned = findListing(st.par.listing);
-  const others = LISTINGS.filter((l) => l.id !== pinned.id);
+  const all = listingsOf(st);
+  const pinned = findListing(st, st.par.listing);
+  // 自分のプロフィールに合う順に並べる
+  const others = all.filter((l) => l.id !== pinned.id && l.game === pinned.game)
+    .sort((a, b) => matchOf(b, st.me).score - matchOf(a, st.me).score);
+  const ended = endedFor(pinned.game);
 
   return (
     <Stack>
-      <AppBar title={`${GAMES[pinned.game].name}の募集`} lead={<Art tag={pinned.game} size={30} />} right={<Badge label={`${LISTINGS.length}件`} tone="ok" />} />
+      <AppBar title={`${GAMES[pinned.game].name}の募集`} lead={<Art tag={pinned.game} size={30} />} right={<Badge label={`${others.length + 1}件`} tone="ok" />} />
       <Note>登録しなくても見られます。「参加したい」を押すときはログインします。</Note>
+      {pinned.host ? <Note color={C.warn}>（デモ）{pinned.host.nickname}さんの招待状のリンクから開いた募集です。ほかの募集は見本です。</Note> : null}
 
       {/* 押したリンクの募集が一番上に出る（list-4） */}
       <Block title="押した募集"><Grid>{[<ListingCard key={pinned.id} l={pinned} pinned />]}</Grid></Block>
@@ -33,7 +39,7 @@ export function ListScreen() {
 
       {/* 終わった募集は、一覧の下に別に並ぶ（list-11） */}
       <Block title="終わった募集">
-        {ENDED_LISTINGS.length ? <Grid>{ENDED_LISTINGS.map((l) => <EndedCard key={l.id} l={l} />)}</Grid>
+        {ended.length ? <Grid>{ended.map((l) => <EndedCard key={l.id} l={l} />)}</Grid>
           : <Card><Empty title="終わった募集はありません" text="" /></Card>}
       </Block>
 
@@ -54,7 +60,8 @@ export function ListScreen() {
 
 function ListingCard({ l, pinned }: { l: Listing; pinned?: boolean }) {
   const { s: st, update, go, toast, saveGameToProfile } = useStore();
-  const p = PEOPLE[l.by];
+  const p = hostOf(l, PEOPLE);
+  const { reasons } = matchOf(l, st.me);
   const par = st.par;
   const isOpen = par.openJoin === l.id;
   const needsId = GAMES[l.game].join === 'id';
@@ -69,7 +76,8 @@ function ListingCard({ l, pinned }: { l: Listing; pinned?: boolean }) {
     if (par.saveToProfile && !(await saveGameToProfile({ game: l.game, platform: l.platform, heat: l.heat, skill: l.skill }))) return;
     update((d) => {
       d.par.sent = true; d.par.listing = l.id; d.par.openJoin = null; d.par.result = 'waiting';
-      logJoin(d, { id: `par:${l.id}`, side: 'par', from: l.by, game: l.game, when: l.when, result: 'waiting' });
+      // リンクの募集の相手は見本の人ではないので、フレンドの知らせには残さない
+      if (!l.host) logJoin(d, { id: `par:${l.id}`, side: 'par', from: l.by, game: l.game, when: l.when, result: 'waiting' });
     });
     toast('参加希望を送りました');
     go('matched');
@@ -80,14 +88,14 @@ function ListingCard({ l, pinned }: { l: Listing; pinned?: boolean }) {
       <Stack gap={8}>
         <Row gap={10}>
           <Avatar p={p} small />
-          <TextButton label={p.nickname} onPress={() => go('person', { id: l.by })} />
+          {l.host ? <Txt size={15} weight="bold" numberOfLines={1} style={{ flexShrink: 0, maxWidth: '50%' }}>{p.nickname}</Txt> :<TextButton label={p.nickname} onPress={() => go('person', { id: l.by })} />}
           <View style={{ flex: 1 }} />
           <Note>{l.via}</Note>
         </Row>
         <Txt size={17} weight="bold">{l.when} ・ あと{l.need}人</Txt>
         {/* 各募集に、募集の内容と信頼の目安が出る（list-9） */}
         <Row gap={10} wrap><Note>{l.platform}</Note><Note>VC{l.vc}</Note><Note>実力 {l.skill}</Note><HeatTag value={l.heat} /></Row>
-        <Reasons items={l.reasons} />
+        <Reasons items={reasons} />
         <Row style={{ justifyContent: 'space-between' }}>
           <Trust value={p.trust} />
           {isOpen ? null : <PillButton label={par.sent ? '参加リクエスト済み' : '参加したい'} disabled={par.sent}
@@ -143,13 +151,13 @@ export function MatchedScreen() {
   const { s: st, update, go, toast } = useStore();
   const { s } = useLayout();
   const par = st.par;
-  const l = findListing(par.listing);
-  const p = PEOPLE[l.by];
+  const l = findListing(st, par.listing);
+  const p = hostOf(l, PEOPLE);
   const game = GAMES[l.game];
   // 結果が変わるたびに、フレンドの知らせの参加履歴も書き換える
   const setResult = (to: typeof par.result) => update((d) => {
     d.par.result = to;
-    logJoin(d, { id: `par:${l.id}`, side: 'par', from: l.by, game: l.game, when: l.when, result: to });
+    if (!l.host) logJoin(d, { id: `par:${l.id}`, side: 'par', from: l.by, game: l.game, when: l.when, result: to });
   });
 
   const head = (
@@ -204,10 +212,12 @@ export function MatchedScreen() {
         </Stack>
       </Card>
       <Block title="フレンドとして残しますか？">
-        <Card><KeepRow person={l.by} kept={par.keep} onKeep={(v) => {
-          update((d) => { d.par.keep = v; });
-          if (v) toast('相手も「残す」を選ぶと、フレンドになります');
-        }} /></Card>
+        {l.host ? <Card pad><Note>（デモ）リンクから開いた募集の相手は、デモではフレンドに残せません。</Note></Card> : (
+          <Card><KeepRow person={l.by} kept={par.keep} onKeep={(v) => {
+            update((d) => { d.par.keep = v; });
+            if (v) toast('相手も「残す」を選ぶと、フレンドになります');
+          }} /></Card>
+        )}
         <Note>お互いに「残す」を選ぶとフレンドになります。後から外したりブロックしたりできます。</Note>
       </Block>
     </>;
