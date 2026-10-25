@@ -36,8 +36,17 @@ test('VC match only when both sides chose (list-8)', () => {
 test('profile skill is found by game name (list-3 initial value)', () => {
   const names = { apex: { name: 'Apex Legends' }, splatoon3: { name: 'スプラトゥーン3' } };
   const games = [{ tag: 'apex', skill: 7 }, { tag: 'splatoon3', skill: 4 }];
-  assert.equal(profileSkillFor('apex legends', games, names), 7);
-  assert.equal(profileSkillFor('スプラトゥーン3', games, names), 4);
-  assert.equal(profileSkillFor('Fall Guys', games, names), null);
+  assert.equal(profileSkillFor({ name: 'apex legends' }, games, names), 7);
+  assert.equal(profileSkillFor({ name: 'スプラトゥーン3' }, games, names), 4);
+  assert.equal(profileSkillFor({ name: 'Fall Guys' }, games, names), null);
   assert.equal(profileSkillFor(null, games, names), null);
+});
+
+test('profile skill is also found by an IGDB alternative name', () => {
+  const names = { splatoon3: { name: 'スプラトゥーン3' }, mk8dx: { name: 'マリオカート8 デラックス' } };
+  const games = [{ tag: 'splatoon3', skill: 4 }, { tag: 'mk8dx', skill: 6 }];
+  assert.equal(profileSkillFor({ name: 'Splatoon 3', alternative_names: ['스플래툰 3', 'スプラトゥーン3'] }, games, names), 4);
+  // Full-width characters and spaces do not matter
+  assert.equal(profileSkillFor({ name: 'Mario Kart 8 Deluxe', alternative_names: ['マリオカート８デラックス'] }, games, names), 6);
+  assert.equal(profileSkillFor({ name: 'Splatoon 2', alternative_names: ['スプラトゥーン2'] }, games, names), null);
 });

@@ -11,7 +11,7 @@ export const isAccepting = (status: RecruitmentStatus) => status === '出てい�
 export const isFinished = (status: RecruitmentStatus) => status === '開催中止' || status === '遊び終了';
 
 export type GameRow = {
-  id: number; name: string; cover_image_id: string | null; hide_cover: boolean; platforms: string[];
+  id: number; name: string; alternative_names: string[]; cover_image_id: string | null; hide_cover: boolean; platforms: string[];
   modes: string[] | null; needs_participant_id_default: boolean | null;
 };
 export type Recruitment = {
@@ -33,7 +33,7 @@ export type Meeting = { room_code: string | null; invite_url: string | null };
 export type Failure = { ok: false; reason: string; status?: RecruitmentStatus };
 export type Result<T extends object = object> = ({ ok: true } & T) | Failure;
 
-const GAME = 'id, name, cover_image_id, hide_cover, platforms, modes, needs_participant_id_default';
+const GAME = 'id, name, alternative_names, cover_image_id, hide_cover, platforms, modes, needs_participant_id_default';
 const RECRUITMENT = `*, status, matched_count, games(${GAME}), profiles(nickname)`;
 
 function db(): SupabaseClient {

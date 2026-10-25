@@ -22,14 +22,18 @@ export function vcMatch(recruitmentVc: string | null, myVc: string | null): 'mat
   return recruitmentVc === myVc ? 'match' : 'mismatch';
 }
 
-// プロフィールで、同じ名前のゲームに入れた実力。プロフィールのゲームは名札（apex など）なので、名前で突き合わせる
+// 全角と半角、大文字と小文字、空白の違いは同じ名前として見る
+const nameKey = (name: string) => name.normalize('NFKC').toLowerCase().replace(/\s+/g, '');
+
+// プロフィールで、同じ名前のゲームに入れた実力。プロフィールのゲームは名札（apex など）なので、名前で突き合わせる。
+// IGDB の名前は英語が多いので、別名（スプラトゥーン3 など）でも突き合わせる
 export function profileSkillFor(
-  gameName: string | null | undefined,
+  game: { name: string; alternative_names?: readonly string[] } | null | undefined,
   myGames: readonly { tag: string; skill: number }[],
   names: Readonly<Record<string, { name: string }>>,
 ): number | null {
-  if (!gameName) return null;
-  const key = gameName.trim().toLowerCase();
-  const hit = myGames.find(g => (names[g.tag]?.name ?? g.tag).trim().toLowerCase() === key);
+  if (!game) return null;
+  const keys = new Set([game.name, ...(game.alternative_names ?? [])].map(nameKey));
+  const hit = myGames.find(g => keys.has(nameKey(names[g.tag]?.name ?? g.tag)));
   return hit ? hit.skill : null;
 }

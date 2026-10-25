@@ -709,7 +709,7 @@ function ListScreen({ params }: Params) {
   const pinned = first ? data.items.find(r => r.id === first) ?? null : null;
   const rest = data.items.filter(r => r !== pinned);
   // Others are ordered by how close their skill is to mine (list-5, server-52, ADR-91)
-  const mySkill = skillPick === undefined ? profileSkillFor(game?.name, s.me.games, GAMES) : skillPick;
+  const mySkill = skillPick === undefined ? profileSkillFor(game, s.me.games, GAMES) : skillPick;
   const openOnes = orderByCloseSkill(rest.filter(r => isAccepting(r.status)), mySkill);
   // Finished recruitments are listed separately below (list-11)
   const ended = orderByCloseSkill(rest.filter(r => !isAccepting(r.status)), mySkill);
