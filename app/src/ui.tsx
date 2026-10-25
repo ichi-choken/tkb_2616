@@ -213,11 +213,11 @@ export function Field(props: TextInputProps & { mono?: boolean }) {
 /* ---------- 小さな表示 ---------- */
 
 // デモには画像を同梱しない。実DBのゲーム画像は src/live/screens.tsx がIGDBから表示する。
-export function Art({ tag, size = 52 }: { tag: GameTag; size?: number }) {
+export function Art({ tag, size = 52, aspectRatio = 2 / 3 }: { tag: GameTag; size?: number; aspectRatio?: number }) {
   const { s } = useLayout();
   return (
     <View accessibilityLabel={`${GAMES[tag].name}：画像なし`}
-      style={{ width: s(size), height: s(size * 1.5), borderRadius: s(5), overflow: 'hidden', backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+      style={{ width: s(size), height: s(size / aspectRatio), flexShrink: 0, borderRadius: s(5), overflow: 'hidden', backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
       <Feather name="image" size={s(20)} color={C.muted} />
     </View>
   );

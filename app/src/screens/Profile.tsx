@@ -14,7 +14,7 @@ import { AddModal, type AddKind } from '../AddModal';
 import { FitModal } from '../FitModal';
 import { C, useLayout } from '../theme';
 import {
-  AppBar, Art, Avatar, Block, Card, Chip, Cols, Divider, Empty, Field, Grid, HeatSlider, HeatTag, MainButton,
+  AppBar, Art, Avatar, Block, Card, Chip, Cols, Divider, Empty, Field, HeatDots, HeatSlider, HeatTag, MainButton,
   MiniButton, Note, Opts, PillButton, Row, SkillSlider, Stack, SubButton, TextButton, Trust, Txt,
 } from '../ui';
 
@@ -29,7 +29,7 @@ function ProfileView() {
   const { s: st, update, editProfile, go, copy, toast } = useStore();
   const settings = useSyncExternalStore(demoSettings.subscribe, demoSettings.getSnapshot, demoSettings.getSnapshot);
   const [adding, setAdding] = useState<AddKind | null>(null);
-  const { wide, width, s, design } = useLayout();
+  const { wide, s, design } = useLayout();
   const p = st.me;
   const actionPending = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -151,13 +151,13 @@ function ProfileView() {
             <Note style={{ flex: 1 }}>（デモ）Steamから取り込んだプレイ時間を、自動で更新しています。最終取得 {settings.steam.lastOk ?? '—'}</Note>
           </Row>
         ) : null}
-        {p.games.length ? <Grid columns={wide ? (width >= 1100 ? 3 : 2) : 1}>{p.games.map((g) => (
+        {p.games.length ? <Stack gap={10}>{p.games.map((g) => (
           <GameCard key={g.tag} g={g} showSteam={steamProfileVisible(settings)}
             onRecruit={() => { update((d) => { d.role = 'rec'; }); go('create', { game: g.tag }); }}
             onSkill={(v) => setGame(g.tag, 'skill', v)}
             onHeat={(v) => setGame(g.tag, 'heat', v)}
             actions={<ProfileRemoveButton name={GAMES[g.tag].name} disabled={busy} onPress={() => askRemove('games', g.tag, GAMES[g.tag].name)} />} />
-        ))}</Grid> : (
+        ))}</Stack> : (
           <Card><Empty title="ゲームがまだ入っていません" text="ゲームを入れると、合う募集が見つかりやすくなります。" button={{ label: '＋ ゲームを追加', onPress: () => setAdding('games') }} /></Card>
         )}
       </Block>
@@ -209,46 +209,57 @@ function TimesCard({ times, region, embedded }: { times: { start: string; end: s
   return embedded ? content : <Card pad>{content}</Card>;
 }
 
-// ゲーム1つ。画像と基本情報の下に、目盛りつきの熱量・実力ゲージを並べる。
+// 横長のゲームカード。画像を左、名前・基本情報・熱量を右にまとめる。
 function GameCard({ g, onRecruit, onSkill, onHeat, actions, showSteam = true }: {
   g: MyGame; actions?: React.ReactNode; onRecruit?: () => void; onSkill?: (v: number) => void; onHeat?: (v: number) => void; showSteam?: boolean;
 }) {
-  const { s } = useLayout();
+  const { s, width } = useLayout();
+  const [editingSkill, setEditingSkill] = useState(false);
+  const artWidth = width < 380 ? 76 : width < 600 ? 96 : 120;
+  const gameName = GAMES[g.tag].name;
   const steam = showSteam ? g.steam : undefined;
-  const meta = [
-    g.platform,
-    steam ? `Steam ${steam.hours}時間` : null,
-    steam?.recent ? `直近2週 ${steam.recent}時間` : null,
-  ].filter(Boolean).join(' ・ ');
   return (
-    <Card style={{ paddingVertical: s(12), paddingHorizontal: s(12) }}>
-      <Stack gap={8}>
+    <>
+      <Card style={{ paddingVertical: s(12), paddingHorizontal: s(12) }}>
         <Row gap={12}>
-          <Art tag={g.tag} size={36} />
+          <Art tag={g.tag} size={artWidth} aspectRatio={2.1} />
           <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-            <Row gap={6}>
-              <Txt size={15} weight="bold" numberOfLines={1} style={{ flex: 1, minWidth: 0 }}>{GAMES[g.tag].name}</Txt>
+            <Row gap={4} style={{ alignItems: 'flex-start' }}>
+              <Txt size={16} weight="bold" numberOfLines={2} style={{ flex: 1, minWidth: 0 }}>{gameName}</Txt>
               {onRecruit ? (
-                <Pressable onPress={onRecruit} accessibilityRole="link" accessibilityLabel={`${GAMES[g.tag].name}の募集を出す`} hitSlop={6}>
-                  <Row gap={3} style={{ paddingHorizontal: s(4), minHeight: s(24) }}><Feather name="plus" size={s(14)} color={C.accent} /><Txt size={12} weight="bold" color={C.accent}>募集</Txt></Row>
+                <Pressable onPress={onRecruit} accessibilityRole="link" accessibilityLabel={`${gameName}の募集を出す`} hitSlop={6}>
+                  <Row gap={3} style={{ paddingHorizontal: s(4), minHeight: s(32) }}><Feather name="plus" size={s(14)} color={C.accent} /><Txt size={12} weight="bold" color={C.accent}>募集</Txt></Row>
                 </Pressable>
               ) : null}
               {actions}
             </Row>
-            <Note>{meta}</Note>
+            <Row gap={6} wrap>
+              <Note>{g.platform}</Note>
+              <Txt size={12} color={C.muted}>・</Txt>
+              {onSkill ? (
+                <Pressable onPress={() => setEditingSkill(true)} accessibilityRole="button"
+                  accessibilityLabel={`${gameName}の実力を変更：${g.skill} / 9`} hitSlop={6}
+                  style={({ pressed }) => ({ opacity: pressed ? 0.65 : 1 })}>
+                  <Row gap={4}><Note>実力 {g.skill} / 9</Note><Feather name="edit-2" size={s(11)} color={C.muted} /></Row>
+                </Pressable>
+              ) : <Note>実力 {g.skill} / 9</Note>}
+              {steam ? <Txt size={13} color={C.muted}>・ {steam.hours}時間{steam.recent ? `（2週 ${steam.recent}時間）` : ''}</Txt> : null}
+            </Row>
+            <HeatDots value={g.heat} onChange={onHeat} />
+            {steam?.estimated ? <Note>熱量はSteamのプレイ時間から推定しました。押すと変えられます</Note> : null}
           </Stack>
         </Row>
-        <Stack gap={0}>
-          <Row style={{ justifyContent: 'space-between' }}><Txt size={13} weight="bold">熱量</Txt><HeatTag value={g.heat} /></Row>
-          <HeatSlider value={g.heat} onChange={onHeat} />
-          {steam?.estimated ? <Note>Steamのプレイ時間から推定しました。動かすと変えられます</Note> : null}
-        </Stack>
-        <Stack gap={0}>
-          <Row><Txt size={13} weight="bold" style={{ flex: 1 }}>実力</Txt><Txt size={14} weight="bold">{g.skill}</Txt><Note>/ 9</Note></Row>
-          <SkillSlider value={g.skill} onChange={onSkill} />
-        </Stack>
-      </Stack>
-    </Card>
+      </Card>
+      {editingSkill && onSkill ? (
+        <FitModal title={`${gameName}の実力`} onClose={() => setEditingSkill(false)}
+          footer={<SubButton label="閉じる" onPress={() => setEditingSkill(false)} />}>
+          <Stack gap={10}>
+            <Row><Txt weight="bold">実力 {g.skill}</Txt><Note>/ 9</Note></Row>
+            <SkillSlider value={g.skill} onChange={onSkill} />
+          </Stack>
+        </FitModal>
+      ) : null}
+    </>
   );
 }
 
