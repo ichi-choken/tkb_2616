@@ -31,3 +31,11 @@ select cron.schedule(
     and exists (select 1 from vault.decrypted_secrets where name = 'integration_worker_key')
   $job$
 );
+
+-- Cron の実行の記録（cron.job_run_details）は自動では消えず、上のジョブで1日に約1,440行ずつ増える。
+-- アプリのデータではないので、毎日1回（日本時間の3時）、直近1日分だけ残して消す。関数の返事（net._http_response）は6時間で自動で消える。
+select cron.schedule(
+  'cron-history-cleanup',
+  '0 18 * * *',
+  $job$ delete from cron.job_run_details where start_time < now() - interval '1 day' $job$
+);

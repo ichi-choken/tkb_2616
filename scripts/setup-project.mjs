@@ -3,7 +3,7 @@
 //   2. Edge Functions を置く
 //   3. Edge Functions の秘密の値を置く（.env.edge.local の、値の入った行）
 //   4. Cron が使う呼び先と鍵を Vault に入れる
-//   5. Steam の自動更新の Cron を入れる（supabase/cron/integration-sync.sql）
+//   5. Steam の自動更新と、その実行の記録の片付けの Cron を入れる（supabase/cron/integration-sync.sql）
 //   6. Steam でログイン（custom:steam）を作る・直す（scripts/setup-steam-login.mjs）
 // 使い方：node scripts/setup-project.mjs <プロジェクトのref> [--app-url <公開先のURL>] [--with-db]
 //   --app-url を付けると、関数を呼んでよい画面と連携の戻り先を、その URL にする。無ければ .env.edge.local の値（手元の localhost）
@@ -75,9 +75,9 @@ end $$;`, { mode: 0o600 });
   quiet(`npx supabase db query --linked --project-ref ${ref} -f "${join(dir, 'vault.sql')}"`, 'Vault に入れるの');
   console.log('  入れた：project_url, integration_worker_key');
 
-  console.log('\n5/6 Steam の自動更新の Cron を入れる（1分ごと）');
+  console.log('\n5/6 Cron を入れる（Steam の自動更新を1分ごと、実行の記録の片付けを毎日）');
   quiet(`npx supabase db query --linked --project-ref ${ref} -f supabase/cron/integration-sync.sql`, 'Cron を入れるの');
-  console.log('  入れた：integration-sync');
+  console.log('  入れた：integration-sync, cron-history-cleanup');
 
   console.log('\n6/6 Steam でログインを作る・直す');
   run(`node scripts/setup-steam-login.mjs ${ref}`);

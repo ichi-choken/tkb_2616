@@ -54,7 +54,7 @@
 - Steamの任意連携解除は `integration_unlink`。取得情報・暗号化トークン・認証試行を削除し、進行中の結果を無効化する。プロフィールの手入力や募集・成立の記録を削除しない。AuthのSteamログインidentityをこの関数で削除しない。
 - 保存するDiscordのアカウント情報はIDのみ。名前・アイコン・メール・作成時期をスナップショットへ足さない。認証の維持に使う暗号化トークンと処理時刻は別扱い。
 - ログイン用の一時テーブルはクライアントからアクセスさせない。codeはPKCE検証に成功した1回だけ消費する。無効な検証値で正しいcodeを消費させない。
-- Steamは連携完了時に取得し、その後は `integration-sync` が永続化した `next_attempt_at` を読んで処理する。アプリを開いていなくても動くよう、Supabase Cron が1分ごとにワーカーを呼ぶ（`supabase/cron/integration-sync.sql`）。呼び先とワーカーキーは Vault に置き、SQLファイルやGitへ書かない。手元のテスト（PGlite）に pg_cron と Vault が無いので、マイグレーションにはしていない。
+- Steamは連携完了時に取得し、その後は `integration-sync` が永続化した `next_attempt_at` を読んで処理する。アプリを開いていなくても動くよう、Supabase Cron が1分ごとにワーカーを呼ぶ（`supabase/cron/integration-sync.sql`）。Cron の実行の記録は自動で消えないので、同じファイルの別のジョブが毎日1日分だけ残して消す。呼び先とワーカーキーは Vault に置き、SQLファイルやGitへ書かない。手元のテスト（PGlite）に pg_cron と Vault が無いので、マイグレーションにはしていない。
 - ワーカーは `POST /functions/v1/integration-sync`、ヘッダーは `x-integration-worker-key`。1回最大4件。利用者数が増えたら未処理件数と所要時間を見て起動数を調整する。外部APIのRetry-Afterを短縮しない。
 - 募集・成立・通知対象者の判断は②の関数が行う。③はそのイベントを配送する。②のアプリ内通知をPushの成功・失敗で消さない。
 - ローカルポートは②の553xxを正として統合する。旧543xx設定へ戻さない。
