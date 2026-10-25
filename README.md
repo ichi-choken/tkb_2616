@@ -79,21 +79,37 @@ Steam連携で取得できるプレイ時間などは自動更新し、入力の
 ## 開発技術
 ### 活用した技術
 #### API・データ
-* 
-* 
+* Supabase（PostgreSQL・Auth・Edge Functions・pg_cron / pg_net）
+* Steam Web API（所持ゲーム・プレイ時間・レベル）と Steam OpenID（ログイン・連携）
+* Discord OAuth2 / Google ログイン（Supabase Auth 経由）
+* IGDB API（Twitch OAuth）によるゲーム検索
+* Expo Push API（通知配信）
 
 #### フレームワーク・ライブラリ・モジュール
-* 
-* 
+* TypeScript
+* Expo SDK 58 / React Native 0.88 / React 19 / react-native-web
+* Expo Router、expo-auth-session、expo-notifications、expo-sqlite、AsyncStorage
+* @supabase/supabase-js
+* Deno（Supabase Edge Functions）
+* PGlite（DBの手元テスト）、Node.js Test Runner、GitHub Actions、GitHub Pages（Web版の公開）
 
 #### デバイス
-* 
-* 
+* スマートフォン（iOS / Android）
+* PC・スマートフォンのWebブラウザ
 
 ### 独自技術
 #### ハッカソンで開発した独自機能・技術
-* 独自で開発したものの内容をこちらに記載してください
-* 特に力を入れた部分をファイルリンク、またはcommit_idを記載してください。
+* **募集から合流までの一連の流れをDB関数で実装。** 募集の公開・参加希望・承認・合流情報の更新・条件変更を Supabase の関数にまとめ、承認前後で見せる情報（部屋番号・招待URL・ゲーム内ID）を権限ごとに出し分けています。
+  * [supabase/migrations/20261024043000_first_flow.sql](supabase/migrations/20261024043000_first_flow.sql)（commit `17925a9`）
+  * [supabase/migrations/20261024150000_approved_screens.sql](supabase/migrations/20261024150000_approved_screens.sql)（commit `77d0ba4`）
+* **Steam連携による信頼の目安と自動更新。** SteamIDやライブラリ全体は公開せず、アカウント年数・レベル・該当ゲームの所持とプレイ時間だけを「信頼の目安」として出します。Cronで定期的に更新します。
+  * [packages/integrations/src/trust.ts](packages/integrations/src/trust.ts)、[packages/integrations/src/steam.ts](packages/integrations/src/steam.ts)、[supabase/functions/steam-trust/index.ts](supabase/functions/steam-trust/index.ts)（commit `6214404`、`0f78a61`）
+* **IGDBのゲーム検索を日本語でも使えるように。** 日本語の題名や別名の一部からもゲームを探せるようにし、選んだゲームを games 表に保存します。
+  * [packages/integrations/src/igdb.ts](packages/integrations/src/igdb.ts)、[supabase/functions/igdb-search/index.ts](supabase/functions/igdb-search/index.ts)（commit `b98d27f`）
+* **ログイン4方式とSteam・Discord連携。** Discord・Google・Steam（OpenID）でのログインと、アカウント連携を実装しました（Appleはボタンのみ）。
+  * [src/auth/flow.ts](src/auth/flow.ts)、[packages/integrations/src/linking.ts](packages/integrations/src/linking.ts)（commit `4d7c101`）
+* **1つのコードでアプリとWebの両方に対応した画面。** Expo（React Native）で、募集・一覧・参加希望・承認・成立の画面をDBにつなぎ、Web版をGitHub Pagesで公開しています。
+  * [app/src/screens](app/src/screens)、[src/live](src/live)（commit `d391edc`、`9d7e57d`）
 
 ### 開発用の土台・外部連携の準備
 
