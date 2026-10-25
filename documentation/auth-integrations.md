@@ -107,6 +107,13 @@
 
 統合版のWebはSPA（single）出力。公開先には認証callbackなどをindex.htmlへ戻す設定が必要。既存Pagesのデモ出力とは起動・ビルド手順を区別する。公開先・app identifiersは①②と合わせ、環境変数を指定してビルドする。開発用とデモ／本番用はチームが用意する別環境にする。
 
+公開先は EAS Hosting の https://tkb2616.expo.app（2026-10-25 から。EAS のプロジェクト @hukahirames-team/shumitomo。名前は変えられない）。デモ用（shumitomo-demo）につなぐ（ADR-81）。EAS Hosting は `/auth/callback` などの道も index.html で開く。置き直す手順：
+
+1. デモ用の URL と公開用の鍵を環境変数に入れて書き出す：`EXPO_PUBLIC_SUPABASE_URL=https://zehncdobeylxamsyuulc.supabase.co EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<デモ用の公開用の鍵> npx expo export --platform web`。`.env` に開発用が入っていても、環境変数のほうが使われる
+2. `npx eas-cli@latest deploy --prod`
+3. 関数・秘密の値を変えたときは `node scripts/setup-project.mjs zehncdobeylxamsyuulc --app-url https://tkb2616.expo.app`。デモ用の関数は、この公開先からの呼び出しだけに答える
+4. デモ用の Redirect URLs に `https://tkb2616.expo.app/auth/callback` が入っていること（管理画面）
+
 ## 検証と未完了事項
 
 ```sh
