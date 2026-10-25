@@ -144,6 +144,7 @@ function ProfileView() {
           </Stack>
         </View>
       </Card>
+      {p.games.some(game => game.steam?.appId) ? <Note>Steamの実力・熱量は初期値から変更できます。</Note> : null}
       <Block title="ゲーム" count={p.games.length} right={<MiniButton label="＋ 追加" onPress={() => setAdding('games')} />}>
         {steamProfileVisible(settings) && p.games.some((g) => g.steam) ? (
           <Row gap={6}>
@@ -152,7 +153,7 @@ function ProfileView() {
           </Row>
         ) : null}
         {p.games.length ? <Stack gap={10}>{p.games.map((g) => (
-          <GameCard key={g.tag} g={g} showSteam={steamProfileVisible(settings)}
+          <GameCard key={g.tag} g={g} showSteam={g.steam?.appId ? settings.steamShow.games : steamProfileVisible(settings)}
             onRecruit={() => { update((d) => { d.role = 'rec'; }); go('create', { game: g.tag }); }}
             onSkill={(v) => setGame(g.tag, 'skill', v)}
             onHeat={(v) => setGame(g.tag, 'heat', v)}
@@ -243,7 +244,7 @@ function GameCard({ g, onRecruit, onSkill, onHeat, actions, showSteam = true }: 
                   <Row gap={4}><Note>実力 {g.skill} / 9</Note><Feather name="edit-2" size={s(11)} color={C.muted} /></Row>
                 </Pressable>
               ) : <Note>実力 {g.skill} / 9</Note>}
-              {steam ? <Txt size={13} color={C.muted}>・ {steam.hours}時間{steam.recent ? `（2週 ${steam.recent}時間）` : ''}</Txt> : null}
+              {steam ? <Txt size={13} color={C.muted}>・ {steam.hours === null ? 'プレイ時間 未取得' : `${steam.hours.toLocaleString('ja-JP', { maximumFractionDigits: 1 })}時間`}{steam.recent ? `（2週 ${steam.recent}時間）` : ''}</Txt> : null}
             </Row>
             <HeatDots value={g.heat} onChange={onHeat} />
             {steam?.estimated ? <Note>熱量はSteamのプレイ時間から推定しました。押すと変えられます</Note> : null}

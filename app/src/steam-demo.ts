@@ -31,6 +31,8 @@ export function importSteam(profile: Profile, at: string): SteamImport {
     const recent = g.recent ?? 0;
     const steam = { hours: g.hours, recent, updated: at };
     const mine = profile.games.find((m) => m.tag === g.tag);
+    // 本物のSteamから入れたゲーム（appId がある）は、デモの値で上書きしない
+    if (mine?.steam?.appId) continue;
     if (mine) {
       mine.steam = steam;
       result.updated.push(g.tag);
@@ -46,8 +48,8 @@ export function importSteam(profile: Profile, at: string): SteamImport {
 // 自動更新の見本。最近遊んでいるゲームのプレイ時間が少し増える
 export function refreshSteam(profile: Profile, at: string) {
   for (const m of profile.games) {
-    if (!m.steam) continue;
-    if (m.steam.recent) {
+    if (!m.steam || m.steam.appId) continue;
+    if (m.steam.recent && m.steam.hours !== null) {
       m.steam.hours += 1;
       m.steam.recent += 1;
     }
@@ -57,5 +59,5 @@ export function refreshSteam(profile: Profile, at: string) {
 
 // 連携の解除で、Steamから入れた表示を外す（server-64）。足したゲームそのものは残す
 export function clearSteam(profile: Profile) {
-  for (const m of profile.games) delete m.steam;
+  for (const m of profile.games) if (!m.steam?.appId) delete m.steam;
 }

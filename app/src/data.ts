@@ -68,16 +68,19 @@ export const HOBBY_SUGGEST = [
 ];
 
 export type MyGame = {
+  demo?: boolean;
   tag: GameTag;
   platform: string;
   heat: number;
   skill: number;
-  // Steam連携で入れた値。recent は直近2週間、estimated は熱量をSteamの記録から推定したまま
-  steam?: { hours: number; updated: string; recent?: number; estimated?: boolean };
+  // Steam連携で入れた値。appId は実連携、recent（直近2週）と estimated（熱量を推定したまま）はデモの連携
+  steam?: { appId?: number; name?: string; hours: number | null; updated: string; recent?: number; estimated?: boolean };
 };
 export type Hobby = { name: string; heat: number };
 export type Like = { name: string; locked?: boolean };
 export type Profile = {
+  steamImportedAppIds?: number[];
+  steamDemoGamesCleared?: boolean;
   nickname: string;
   appId: string;
   color: string;
@@ -94,9 +97,9 @@ export const ME: Profile = {
   appId: 'yu7',
   color: '#6c5cf0',
   games: [
-    { tag: 'apex', platform: 'PC（Steam）', heat: 4, skill: 5 },
-    { tag: 'splatoon3', platform: 'Switch', heat: 2, skill: 6 },
-    { tag: 'fallguys', platform: 'PlayStation', heat: 1, skill: 3 },
+    { demo: true, tag: 'apex', platform: 'PC（Steam）', heat: 4, skill: 5, steam: { hours: 312, updated: '今日 9:12' } },
+    { demo: true, tag: 'splatoon3', platform: 'Switch', heat: 2, skill: 6 },
+    { demo: true, tag: 'fallguys', platform: 'PlayStation', heat: 1, skill: 3 },
   ],
   hobbies: [
     { name: 'カフェ巡り', heat: 4 },
