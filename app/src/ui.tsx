@@ -1,11 +1,10 @@
 // 画面をまたいで使う部品
 import { useState, type ReactNode } from 'react';
-import { Image, Pressable, Text, TextInput, View, type StyleProp, type TextInputProps, type TextStyle, type ViewStyle } from 'react-native';
+import { Pressable, Text, TextInput, View, type StyleProp, type TextInputProps, type TextStyle, type ViewStyle } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Feather from '@expo/vector-icons/Feather';
 import { GAMES, HEAT, SKILLS, type GameTag, type Person, type Profile } from './data';
 import { C, F, shadow, useLayout } from './theme';
-import { DEMO_COVERS } from './demo-covers';
 
 /* ---------- 文字 ---------- */
 
@@ -213,14 +212,13 @@ export function Field(props: TextInputProps & { mono?: boolean }) {
 
 /* ---------- 小さな表示 ---------- */
 
-// デモのパッケージ画像。未登録のゲームは画像なしと分かる表示にする。
+// デモには画像を同梱しない。実DBのゲーム画像は src/live/screens.tsx がIGDBから表示する。
 export function Art({ tag, size = 52 }: { tag: GameTag; size?: number }) {
   const { s } = useLayout();
-  const source = DEMO_COVERS[tag];
   return (
-    <View accessibilityLabel={`${GAMES[tag].name}${source ? 'のパッケージ画像' : '：画像未登録'}`}
+    <View accessibilityLabel={`${GAMES[tag].name}：画像なし`}
       style={{ width: s(size), height: s(size * 1.5), borderRadius: s(5), overflow: 'hidden', backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
-      {source ? <Image source={source} resizeMode="contain" style={{ width: '100%', height: '100%' }} /> : <Feather name="image" size={s(20)} color={C.muted} />}
+      <Feather name="image" size={s(20)} color={C.muted} />
     </View>
   );
 }
@@ -410,20 +408,5 @@ export function SkillStepper({ value, onChange }: { value: number; onChange?: (v
       </View>
       {onChange ? step(1, 'plus', '実力を1上げる') : null}
     </Row>
-  );
-}
-
-/* ---------- 権利の表示 ---------- */
-
-// ゲームの名前と画像の出どころと権利（app-11、app-22）
-export function RightsNote({ onOpen }: { onOpen: (url: string) => void }) {
-  return (
-    <Txt size={11} color={C.muted}>
-      デモ画像の出典：{' '}
-      <Text onPress={() => onOpen('https://store.steampowered.com/')} style={{ textDecorationLine: 'underline' }}>Steam</Text>
-      {' / '}
-      <Text onPress={() => onOpen('https://www.nintendo.com/jp/switch/av5ja/index.html')} style={{ textDecorationLine: 'underline' }}>任天堂</Text>
-      {'。画像の権利は各ゲーム会社にあります。外してほしいときは運営までご連絡ください。'}
-    </Txt>
   );
 }

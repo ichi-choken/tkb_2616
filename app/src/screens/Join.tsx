@@ -7,14 +7,14 @@ import { endedFor, hostOf, matchOf } from '../share-link';
 import { C, useLayout } from '../theme';
 import {
   AppBar, Art, Avatar, Badge, Block, Card, Check, DemoButton, Divider, Empty, Field, Grid, HeatTag, MainButton,
-  MiniButton, Note, PillButton, Reasons, RightsNote, Row, Stack, SubButton, TextButton, Trust, Txt,
+  MiniButton, Note, PillButton, Reasons, Row, Stack, SubButton, TextButton, Trust, Txt,
 } from '../ui';
 import { InfoRow, JoinInfo, KeepRow } from './Recruit';
 
 /* ---------- 募集一覧 ---------- */
 
 export function ListScreen() {
-  const { s: st, update, go, open } = useStore();
+  const { s: st, update, go } = useStore();
   const { s } = useLayout();
   const all = listingsOf(st);
   const pinned = findListing(st, st.par.listing);
@@ -53,7 +53,6 @@ export function ListScreen() {
           }} />
         </Stack>
       </Card>
-      <RightsNote onOpen={open} />
     </Stack>
   );
 }

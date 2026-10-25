@@ -15,7 +15,7 @@ import { FitModal } from '../FitModal';
 import { C, useLayout } from '../theme';
 import {
   AppBar, Art, Avatar, Block, Card, Chip, Cols, Divider, Empty, Field, Grid, HeatSlider, HeatTag, MainButton,
-  MiniButton, Note, Opts, PillButton, RightsNote, Row, SkillSlider, Stack, SubButton, TextButton, Trust, Txt,
+  MiniButton, Note, Opts, PillButton, Row, SkillSlider, Stack, SubButton, TextButton, Trust, Txt,
 } from '../ui';
 
 /* ---------- 自分のプロフィール ---------- */
@@ -26,7 +26,7 @@ export function ProfileScreen() {
 }
 
 function ProfileView() {
-  const { s: st, update, editProfile, go, copy, toast, open } = useStore();
+  const { s: st, update, editProfile, go, copy, toast } = useStore();
   const settings = useSyncExternalStore(demoSettings.subscribe, demoSettings.getSnapshot, demoSettings.getSnapshot);
   const [adding, setAdding] = useState<AddKind | null>(null);
   const { wide, width, s, design } = useLayout();
@@ -162,7 +162,6 @@ function ProfileView() {
         )}
       </Block>
       <Cols even left={hobbies} right={likes} />
-      <RightsNote onOpen={open} />
       <AddModal kind={adding} onClose={() => setAdding(null)} />
       {removing ? <FitModal title="プロフィールから削除" onClose={closeRemove} footer={
         <Row style={{ justifyContent: 'flex-end' }}>
@@ -404,7 +403,7 @@ function ProfileEdit() {
 /* ---------- 他の人のプロフィール（あなたと同じ・フレンド申請） ---------- */
 
 export function PersonScreen({ id }: { id?: string }) {
-  const { s: st, update, go, toast, open } = useStore();
+  const { s: st, update, go, toast } = useStore();
   const p = isPersonId(id) ? PEOPLE[id] : null;
   if (!p) {
     return (
@@ -459,7 +458,6 @@ export function PersonScreen({ id }: { id?: string }) {
             <Card pad><Row gap={6} wrap>{p.likes.filter((l) => !l.locked).map((l) =>
               <Chip key={l.name} label={l.name} common={me.likes.some((m) => m.name === l.name)} />)}</Row></Card>
           </Block>
-          <RightsNote onOpen={open} />
         </>}
       />
     </Stack>

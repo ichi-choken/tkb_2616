@@ -24,7 +24,7 @@ function dateLabel(value: string | null) {
   return value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString('ja-JP') : null;
 }
 
-export function ConnectedSettingsScreen() {
+export function ConnectedSettingsScreen({ steamOnly = false }: { steamOnly?: boolean }) {
   const { go, copy, open, confirm } = useStore();
   const { s } = useLayout();
   const [controller] = useState(createConnectedSettings);
@@ -53,13 +53,13 @@ export function ConnectedSettingsScreen() {
         </Row>
         <Note>{state.configured
           ? 'この設定画面は実際のログイン・連携状態を表示します。募集・参加・承認も実際のデータで動きます。プロフィールとフレンドは、まだデモです。'
-          : 'この設定画面は実際のログイン・連携状態を表示します。接続先が未設定のため、ほかの画面はデモです。'}</Note>
+          : 'この設定画面は実際のログイン・連携状態を表示します。募集DBの接続先が未設定です。プロフィールとフレンドは端末内のデモデータです。'}</Note>
         {state.userId ? <SubButton label={state.busy === 'logout' ? 'ログアウト中…' : 'ログアウト'} disabled={disabled} onPress={async () => {
           const userId = state.userId;
           if (await confirm('ログアウトしますか？') && controller.getSnapshot().userId === userId) await controller.logout();
         }} /> : <>
-          <Note>Discord・Google・Steamからログイン方法を選べます。情報の連携は、ログイン後に設定できます。</Note>
-          <Row gap={8} wrap>{loginProviders.map(provider => <SubButton key={provider}
+          <Note>{steamOnly ? '募集DBにはSteamでログインできます。情報の連携は、ログイン後に設定できます。' : 'Discord・Google・Steamからログイン方法を選べます。情報の連携は、ログイン後に設定できます。'}</Note>
+          <Row gap={8} wrap>{loginProviders.filter(provider => !steamOnly || provider === 'steam').map(provider => <SubButton key={provider}
             label={state.busy === `login:${provider}` ? '接続中…' : names[provider]}
             accessibilityLabel={`${names[provider]}でログイン`} icon={({ discord: 'logo-discord', google: 'logo-google', steam: 'logo-steam', apple: 'logo-apple' } as const)[provider]} style={{ flexGrow: 1, minWidth: '44%', minHeight: s(46) }}
             disabled={disabled || !isLoginEnabled(provider) || (provider === 'google' && embedded)} onPress={() => { void controller.login(provider); }} />)}</Row>
@@ -73,7 +73,6 @@ export function ConnectedSettingsScreen() {
     </Stack></Card> : null}
     <Card pad><Stack gap={6}>
       <Txt size={13} weight="bold">このアプリについて</Txt>
-      <Note>プロフィールと募集のパッケージ画像はSteam・任天堂の公式ページからの見本です。</Note>
       <TextButton label="IGDB.com（ゲーム検索の提供元）" onPress={() => open('https://www.igdb.com/')} />
     </Stack></Card>
   </>;
@@ -82,7 +81,7 @@ export function ConnectedSettingsScreen() {
       <Note>{state.linksLoading ? '連携状態を読み込んでいます…' : state.linksError ? '連携状態を確認できませんでした。未連携かどうかはまだ分かりません。' : '連携は任意です。ログイン方法とは別に管理します。'}</Note>
       <SubButton label={state.linksError ? '連携状態を再確認' : '連携状態を確認'} disabled={disabled || state.linksLoading} onPress={() => { void controller.refresh(); }} />
     </Stack></Card> : null}
-    {(['steam', 'discord'] as const).map(provider => {
+    {(['steam', 'discord'] as const).filter(provider => !steamOnly || provider === 'steam').map(provider => {
       const link = state.links?.find(item => item.provider === provider);
       return <Card key={provider} pad><Stack gap={14}>
         <Row gap={10} wrap>
