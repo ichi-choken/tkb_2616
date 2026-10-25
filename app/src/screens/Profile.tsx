@@ -2,6 +2,7 @@
 import { useRef, useState, useSyncExternalStore } from 'react';
 import { Pressable, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   GAMES, HEAT, PEOPLE, PLATFORMS, REGION_OPTIONS,
   hasNgWord, isPersonId, isTime, type MyGame, type Person, type PersonId, type Profile,
@@ -42,6 +43,8 @@ function ProfileView() {
     if (!(await editProfile(profile => {
       const game = profile.games.find(item => item.tag === tag);
       if (game) game[key] = value;
+      // 本人が直した熱量は、もう「Steamから推定」ではない
+      if (game?.steam && key === 'heat') delete game.steam.estimated;
     }))) return;
     toast(key === 'heat' ? `熱量を「${HEAT[value]}」にしました` : `実力を ${value} にしました`);
   };
@@ -142,6 +145,12 @@ function ProfileView() {
         </View>
       </Card>
       <Block title="ゲーム" count={p.games.length} right={<MiniButton label="＋ 追加" onPress={() => setAdding('games')} />}>
+        {steamProfileVisible(settings) && p.games.some((g) => g.steam) ? (
+          <Row gap={6}>
+            <Ionicons name="logo-steam" size={s(14)} color={C.muted} />
+            <Note style={{ flex: 1 }}>（デモ）Steamから取り込んだプレイ時間を、自動で更新しています。最終取得 {settings.steam.lastOk ?? '—'}</Note>
+          </Row>
+        ) : null}
         {p.games.length ? <Grid columns={wide ? (width >= 1100 ? 3 : 2) : 1}>{p.games.map((g) => (
           <GameCard key={g.tag} g={g} showSteam={steamProfileVisible(settings)}
             onRecruit={() => { update((d) => { d.role = 'rec'; }); go('create', { game: g.tag }); }}
@@ -206,7 +215,12 @@ function GameCard({ g, onRecruit, onSkill, onHeat, actions, showSteam = true }: 
   g: MyGame; actions?: React.ReactNode; onRecruit?: () => void; onSkill?: (v: number) => void; onHeat?: (v: number) => void; showSteam?: boolean;
 }) {
   const { s } = useLayout();
-  const meta = [g.platform, showSteam && g.steam ? `Steam ${g.steam.hours}時間` : null].filter(Boolean).join(' ・ ');
+  const steam = showSteam ? g.steam : undefined;
+  const meta = [
+    g.platform,
+    steam ? `Steam ${steam.hours}時間` : null,
+    steam?.recent ? `直近2週 ${steam.recent}時間` : null,
+  ].filter(Boolean).join(' ・ ');
   return (
     <Card style={{ paddingVertical: s(12), paddingHorizontal: s(12) }}>
       <Stack gap={8}>
@@ -228,6 +242,7 @@ function GameCard({ g, onRecruit, onSkill, onHeat, actions, showSteam = true }: 
         <Stack gap={0}>
           <Row style={{ justifyContent: 'space-between' }}><Txt size={13} weight="bold">熱量</Txt><HeatTag value={g.heat} /></Row>
           <HeatSlider value={g.heat} onChange={onHeat} />
+          {steam?.estimated ? <Note>Steamのプレイ時間から推定しました。動かすと変えられます</Note> : null}
         </Stack>
         <Stack gap={0}>
           <Row><Txt size={13} weight="bold" style={{ flex: 1 }}>実力</Txt><Txt size={14} weight="bold">{g.skill}</Txt><Note>/ 9</Note></Row>

@@ -1,15 +1,16 @@
 // 設定：アカウント（ログイン）と、Steam・Discordとの連携（account-1〜12、server-41・62〜64・75）
 // デモの連携・表示設定はプロフィールと同じ状態を参照する
-import { useSyncExternalStore } from 'react';
-import { Platform, View } from 'react-native';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { savedInfo } from '../saved';
 import { useStore } from '../store';
 import { demoSettings } from '../demo-settings';
 import { freshLink, type Service, type Link, type SteamItem, type Settings } from '../demo-settings-state';
+import { STEAM_ACCOUNT, STEAM_LIBRARY, clearSteam, importSteam, refreshSteam, type SteamImport } from '../steam-demo';
 import { C, useLayout } from '../theme';
 import {
-  AppBar, Badge, Block, Card, Check, Cols, DemoButton, Divider, MainButton, Note, PillButton, Row, Stack, SubButton,
+  AppBar, Art, Badge, Block, Card, Check, Cols, DemoButton, Divider, MainButton, Note, PillButton, Row, Stack, SubButton,
   TextButton, Trust, Txt,
 } from '../ui';
 
@@ -35,14 +36,11 @@ const UA = Platform.OS === 'web' && typeof navigator !== 'undefined' ? navigator
 const IN_APP_UA = /Line\/|FBAN|FBAV|Instagram|Twitter|Discord/i.test(UA);
 const IS_LINE = /Line\//i.test(UA);
 
-/* ---------- 連携で取れるもの（見本） ---------- */
+/* ---------- 連携で取れるもの（見本は steam-demo.ts） ---------- */
 
-// 取得できないプレイ時間は、0時間と区別する（server-62）
-const STEAM_GAMES: { name: string; hours: number | null }[] = [
-  { name: 'Apex Legends', hours: 312 },
-  { name: 'Among Us', hours: 0 },
-  { name: 'Fall Guys', hours: null },
-];
+// 取り込み中に順に出す手順。取り込みはこの時間だけ待ってから終える
+const IMPORT_STEPS = ['Steamのプロフィール（アカウントの年数・レベル）', '持っているゲーム', 'ゲームごとのプレイ時間', 'プロフィールへの反映'];
+const IMPORT_STEP_MS = 550;
 const SERVICE_NAME: Record<Service, string> = { steam: 'Steam', discord: 'Discord' };
 const LOGIN_NAME = { discord: 'Discord', google: 'Google', steam: 'Steam', apple: 'Apple' } as const;
 const LOGIN_ICON = { discord: 'logo-discord', google: 'logo-google', steam: 'logo-steam', apple: 'logo-apple' } as const;
@@ -67,7 +65,7 @@ export function SettingsScreen() {
   };
 
   const trustParts = [
-    st.steam.linked && st.steam.fetch !== 'private' ? `Steam連携${st.steamShow.age ? '・5年' : ''}` : null,
+    st.steam.linked && st.steam.fetch !== 'private' ? `Steam連携${st.steamShow.age ? `・${STEAM_ACCOUNT.years}年` : ''}${st.steamShow.level ? `・Lv.${STEAM_ACCOUNT.level}` : ''}` : null,
     st.discord.linked ? 'Discord連携' : null,
   ].filter(Boolean);
 
@@ -240,7 +238,7 @@ function LoginButton({ icon, label, onPress, disabled }: { icon: keyof typeof Io
 /* ---------- 連携（account-2〜10） ---------- */
 
 function LinkBlock({ service, inApp, onOpenBrowser }: { service: Service; inApp: boolean; onOpenBrowser: () => void }) {
-  const { toast, confirm, open } = useStore();
+  const { toast, confirm, open, editProfile } = useStore();
   const st = useSettings();
   const l = st[service];
   const name = SERVICE_NAME[service];
@@ -249,29 +247,56 @@ function LinkBlock({ service, inApp, onOpenBrowser }: { service: Service; inApp:
   // 連携の状態の表
   const start = () => upd((x) => { x.phase = 'authing'; });
   const succeed = () => {
-    upd((x) => { x.linked = true; x.phase = 'idle'; x.fetch = 'auto'; x.lastOk = now(); });
-    toast(`（デモ）${name}と連携した表示にしました`);
+    if (service === 'discord') {
+      upd((x) => { x.linked = true; x.phase = 'idle'; x.fetch = 'auto'; x.lastOk = now(); });
+      toast(`（デモ）${name}と連携した表示にしました`);
+      return;
+    }
+    // Steamは、取り込みの手順を見せてから、見本の値をプロフィールに入れる
+    upd((x) => { x.phase = 'importing'; });
+    setTimeout(async () => {
+      const at = now();
+      const out: { r?: SteamImport } = {};
+      const saved = await editProfile((p) => { out.r = importSteam(p, at); });
+      set((d) => {
+        Object.assign(d.steam, { linked: true, phase: 'idle', fetch: 'auto', lastOk: at });
+        d.steamImport = saved && out.r ? out.r : null;
+      });
+      if (saved && out.r) toast(`（デモ）Steamから取り込み、ゲームを${out.r.added.length}件追加・${out.r.updated.length}件更新しました`);
+    }, IMPORT_STEP_MS * IMPORT_STEPS.length);
   };
   const cancel = () => upd((x) => { x.phase = 'idle'; }); // 元の連携を維持
   const fail = () => upd((x) => { x.phase = 'failed'; }); // 元の連携を維持
 
   // 取得の失敗と再認証の表
-  const fetchEvent = (e: 'ok' | 'net' | 'limit' | 'auth' | 'private') => upd((x) => {
-    if (e === 'ok') { x.fetch = 'auto'; x.lastOk = now(); return; }
-    if (e === 'net' || e === 'limit') { if (x.fetch === 'auto') x.fetch = 'retry'; return; }
-    if (e === 'auth') { if (x.fetch !== 'relink') x.fetch = 'relink'; return; }
-    if (x.fetch !== 'private') x.fetch = 'private';
-  });
+  const fetchEvent = async (e: 'ok' | 'net' | 'limit' | 'auth' | 'private') => {
+    // 取得できたときは、Steamのプレイ時間も新しくなる（自動更新の見本）
+    const at = now();
+    if (e === 'ok' && service === 'steam' && !(await editProfile((p) => refreshSteam(p, at)))) return;
+    upd((x) => {
+      if (e === 'ok') { x.fetch = 'auto'; x.lastOk = at; return; }
+      if (e === 'net' || e === 'limit') { if (x.fetch === 'auto') x.fetch = 'retry'; return; }
+      if (e === 'auth') { if (x.fetch !== 'relink') x.fetch = 'relink'; return; }
+      if (x.fetch !== 'private') x.fetch = 'private';
+    });
+  };
 
   // 連携を解除（account-10）。自動取得を止め、連携由来の表示と信頼の目安を外す（server-64）
   const unlink = async () => {
     if (!(await confirm(`${name}との連携を解除しますか？自動取得を止め、${name}から入れた表示と信頼の目安を外します。`))) return;
-    upd((x) => { Object.assign(x, freshLink()); });
-    toast(`${name}との連携を解除しました`);
+    if (service === 'steam' && !(await editProfile(clearSteam))) return;
+    set((d) => {
+      Object.assign(d[service], freshLink());
+      if (service === 'steam') d.steamImport = null;
+    });
+    toast(service === 'steam'
+      ? 'Steamとの連携を解除しました。足したゲームは残し、プレイ時間の表示を外しました'
+      : `${name}との連携を解除しました`);
   };
 
   const icon = service === 'steam' ? 'logo-steam' : 'logo-discord';
   const badge = l.phase === 'authing' ? <Badge label="認証中" tone="warn" />
+    : l.phase === 'importing' ? <Badge label="取り込み中" tone="warn" />
     : l.phase === 'failed' ? <Badge label="失敗" tone="danger" />
     : l.linked ? <Badge label="連携済み" tone="ok" /> : <Badge label="未連携" tone="rest" />;
 
@@ -296,6 +321,8 @@ function LinkBlock({ service, inApp, onOpenBrowser }: { service: Service; inApp:
                 <DemoButton label="（デモ）失敗した" onPress={fail} />
               </Row>
             </Stack>
+          ) : l.phase === 'importing' ? (
+            <ImportSteps />
           ) : l.phase === 'failed' ? (
             <Stack gap={8}>
               <Note color={C.danger}>連携できませんでした。{l.linked ? 'これまでの連携はそのまま使えます。' : ''}</Note>
@@ -344,6 +371,7 @@ function LinkBlock({ service, inApp, onOpenBrowser }: { service: Service; inApp:
 function Linked({ service, l }: { service: Service; l: Link }) {
   const st = useSettings();
   const { s } = useLayout();
+  const { s: { me }, go } = useStore();
 
   const status = {
     auto: { tone: 'ok' as const, label: '自動で更新中', text: '更新ボタンを押さなくても、自動で新しい情報に変わります。' },
@@ -373,22 +401,51 @@ function Linked({ service, l }: { service: Service; l: Link }) {
   const hidden = l.fetch === 'private';
   const show = st.steamShow;
   const toggle = (k: SteamItem) => (v: boolean) => set((d) => { d.steamShow[k] = v; });
-  const hours = (h: number | null) => (hidden || h === null ? '取得できていません' : `${h}時間`);
+  const imported = st.steamImport;
+  // プロフィールに入れたゲームは、自動更新で増えた時間を出す
+  const rows = STEAM_LIBRARY.map((g) => {
+    const mine = me.games.find((m) => m.tag === g.tag)?.steam;
+    const hours = mine?.hours ?? g.hours;
+    const recent = mine?.recent ?? g.recent;
+    const result = imported?.added.includes(g.tag) ? { label: 'プロフィールに追加', tone: 'ok' as const }
+      : imported?.updated.includes(g.tag) ? { label: '時間を反映', tone: 'ok' as const }
+      : g.hours === 0 ? { label: '未プレイのため入れない', tone: 'rest' as const }
+      : g.hours === null ? { label: '時間が取れない', tone: 'rest' as const }
+      : null;
+    return { ...g, hours, recent, result };
+  });
 
   return (
     <Stack gap={10}>
       {statusRow}
+      {imported && !hidden ? (
+        <Card pad style={{ backgroundColor: C.okBg }}>
+          <Stack gap={6}>
+            <Row gap={6}><Ionicons name="checkmark-circle" size={s(16)} color={C.ok} /><Txt size={14} weight="bold" color={C.ok} style={{ flex: 1 }}>（デモ）Steamから取り込みました</Txt></Row>
+            <Note color={C.ink}>持っているゲーム{STEAM_LIBRARY.length}本のうち、遊んだことのある{imported.added.length + imported.updated.length}本をプロフィールに反映しました（追加 {imported.added.length}・更新 {imported.updated.length}）。新しく足したゲームの熱量は、直近2週間のプレイ時間から推定しています。</Note>
+            <View style={{ alignSelf: 'flex-start' }}><PillButton label="プロフィールで見る" onPress={() => go('profile')} /></View>
+          </Stack>
+        </Card>
+      ) : null}
       <Facts rows={[
-        ['アカウントの年数', hidden ? '非公開・取得不可' : '5年'],
-        ['Steamレベル', hidden ? '非公開・取得不可' : '23'],
+        ['アカウントの年数', hidden ? '非公開・取得不可' : `${STEAM_ACCOUNT.years}年`],
+        ['Steamレベル', hidden ? '非公開・取得不可' : String(STEAM_ACCOUNT.level)],
+        ['持っているゲーム', hidden ? '非公開・取得不可' : `${STEAM_LIBRARY.length}本`],
       ]} />
       <Stack gap={4}>
-        <Txt size={13} weight="bold" color={C.muted}>持っているゲームとプレイ時間</Txt>
-        {STEAM_GAMES.map((g) => (
-          <Row key={g.name} style={{ justifyContent: 'space-between', paddingVertical: s(2) }}>
-            <Txt size={14}>{g.name}</Txt>
-            <Txt size={14} weight="bold" color={hidden || g.hours === null ? C.muted : C.ink}>{hours(g.hours)}</Txt>
-          </Row>
+        <Txt size={13} weight="bold" color={C.muted}>取り込んだゲームとプレイ時間</Txt>
+        {rows.map((g) => (
+          <View key={g.tag} style={{ paddingVertical: s(6), borderBottomWidth: 1, borderColor: C.line }}>
+            <Row gap={8}>
+              <Art tag={g.tag} size={28} />
+              <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
+                <Txt size={14} weight="bold" numberOfLines={1}>{g.name}</Txt>
+                <Note>{hidden || g.hours === null ? '取得できていません'
+                  : `合計 ${g.hours}時間${g.recent ? ` ・ 直近2週 ${g.recent}時間` : ''}`}</Note>
+                {!hidden && g.result ? <View style={{ alignSelf: 'flex-start' }}><Badge label={g.result.label} tone={g.result.tone} /></View> : null}
+              </Stack>
+            </Row>
+          </View>
         ))}
         <Note>0時間は「持っているが遊んでいない」、取得できていないものは「Steamが教えてくれない」です。</Note>
       </Stack>
@@ -401,6 +458,31 @@ function Linked({ service, l }: { service: Service; l: Link }) {
         <Note>自動で更新されても、ここで選んだものは変わりません。</Note>
       </Stack>
       <Note>プレイ時間を出すには、Steamの公開設定で、プロフィールとゲームの詳細を「公開」にします。Steam上の誰からでも見えるようになります。</Note>
+    </Stack>
+  );
+}
+
+// 取り込みの手順を、1つずつ終わったように見せる（デモ）
+function ImportSteps() {
+  const { s } = useLayout();
+  const [done, setDone] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setDone((n) => Math.min(n + 1, IMPORT_STEPS.length)), IMPORT_STEP_MS);
+    return () => clearInterval(timer);
+  }, []);
+  return (
+    <Stack gap={6}>
+      <Note color={C.ink}>（デモ）認証できました。Steamから情報を取り込んでいます。</Note>
+      {IMPORT_STEPS.map((label, i) => (
+        <Row key={label} gap={8}>
+          <View style={{ width: s(18), alignItems: 'center' }}>
+            {i < done ? <Ionicons name="checkmark-circle" size={s(16)} color={C.ok} />
+              : i === done ? <ActivityIndicator size="small" color={C.accent} />
+              : <Ionicons name="ellipse-outline" size={s(14)} color={C.line} />}
+          </View>
+          <Txt size={13} color={i <= done ? C.ink : C.muted}>{label}</Txt>
+        </Row>
+      ))}
     </Stack>
   );
 }

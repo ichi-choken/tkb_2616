@@ -1,6 +1,6 @@
 // Shared standalone demo display state, separate from real Auth/API data.
 export type Service = 'steam' | 'discord';
-export type Phase = 'idle' | 'authing' | 'failed';
+export type Phase = 'idle' | 'authing' | 'importing' | 'failed';
 export type Fetch = 'auto' | 'retry' | 'relink' | 'private';
 export type SteamItem = 'age' | 'level' | 'games';
 export type Link = { linked: boolean; phase: Phase; fetch: Fetch; lastOk: string | null };
@@ -11,12 +11,15 @@ export type Settings = {
   steam: Link;
   discord: Link;
   steamShow: Record<SteamItem, boolean>;
+  // 前回Steamから取り込んだゲーム（プロフィールに足したもの・時間を入れたもの）
+  steamImport: { added: string[]; updated: string[] } | null;
 };
 export const freshLink = (): Link => ({ linked: false, phase: 'idle', fetch: 'auto', lastOk: null });
 const fresh = (): Settings => ({
   login: null, googleStep: false, inApp: false,
   steam: freshLink(), discord: freshLink(),
   steamShow: { age: true, level: true, games: true },
+  steamImport: null,
 });
 
 export function steamProfileVisible(state: Settings): boolean {

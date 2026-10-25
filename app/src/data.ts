@@ -72,7 +72,8 @@ export type MyGame = {
   platform: string;
   heat: number;
   skill: number;
-  steam?: { hours: number; updated: string };
+  // Steam連携で入れた値。recent は直近2週間、estimated は熱量をSteamの記録から推定したまま
+  steam?: { hours: number; updated: string; recent?: number; estimated?: boolean };
 };
 export type Hobby = { name: string; heat: number };
 export type Like = { name: string; locked?: boolean };
@@ -93,7 +94,7 @@ export const ME: Profile = {
   appId: 'yu7',
   color: '#6c5cf0',
   games: [
-    { tag: 'apex', platform: 'PC（Steam）', heat: 4, skill: 5, steam: { hours: 312, updated: '今日 9:12' } },
+    { tag: 'apex', platform: 'PC（Steam）', heat: 4, skill: 5 },
     { tag: 'splatoon3', platform: 'Switch', heat: 2, skill: 6 },
     { tag: 'fallguys', platform: 'PlayStation', heat: 1, skill: 3 },
   ],
