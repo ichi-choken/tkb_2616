@@ -1,8 +1,8 @@
 // ゲーム・趣味・好きなものを足すモーダル。
 // 欄に打つと候補が絞り込まれて下に出る（家計簿の「店舗を選択」と同じ形）。
 // 候補を押すとそれを足し、右の「新規追加」を押すと、候補が出ていても打った名前をそのまま足す。
-import { useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, TextInput, View, type TextInputInstance } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { GAMES, HOBBY_SUGGEST, LIKE_SUGGEST, addCustomGame, hasNgWord } from './data';
 import { FitModal, useFitHeight } from './FitModal';
 import { useStore } from './store';
@@ -46,7 +46,6 @@ export function Combobox({ items, placeholder, onPick, onCreate, onType }: {
   const fitHeight = useFitHeight();
   const [text, setText] = useState('');
   const [open, setOpen] = useState(true);
-  const input = useRef<TextInputInstance>(null);
 
   const matches = useMemo(() => {
     const q = fold(text);
@@ -63,20 +62,24 @@ export function Combobox({ items, placeholder, onPick, onCreate, onType }: {
     onCreate(name);
     setText('');
   };
-  // Enter：打った名前と同じ候補があればそれを、無ければ新しく足す
+  const pick = (item: Item) => {
+    // 確定後も候補の正式名を保つ。入力確定が続いても検索途中の文字を登録しない。
+    setText(item.label);
+    onPick(item);
+  };
+  // Enter も候補選択と同じ経路にする。自由入力での追加は候補がないときだけ。
   const submit = () => {
-    const exact = items.find((it) => fold(it.label) === fold(text.trim()));
-    if (exact) {
-      onPick(exact);
-      setText('');
-    } else create();
+    if (!text.trim()) return;
+    const candidate = matches.find((it) => fold(it.label) === fold(text.trim()))
+      ?? matches.find((it) => !it.added);
+    if (candidate) pick(candidate);
+    else if (!matches.length) create();
   };
 
   return (
     <View>
       <Row gap={0} style={{ borderWidth: 1, borderColor: C.line, borderRadius: s(8), backgroundColor: C.bg, paddingRight: s(6) }}>
         <TextInput
-          ref={input}
           value={text}
           onChangeText={(v) => { setText(v); setOpen(true); onType?.(); }}
           onFocus={() => setOpen(true)}
@@ -103,10 +106,10 @@ export function Combobox({ items, placeholder, onPick, onCreate, onType }: {
       {open ? (
         <View style={[{ marginTop: s(4), borderWidth: 1, borderColor: C.line, borderRadius: s(8), backgroundColor: C.card, overflow: 'hidden' }, shadow]}>
           {/* 低い画面では、候補の一覧も縮めて、欄と見出しが画面に残るようにする */}
-          <ScrollView style={{ maxHeight: Math.min(s(240), Math.round(fitHeight * 0.4)) }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+          <ScrollView style={{ maxHeight: Math.min(s(240), Math.round(fitHeight * 0.4)) }} keyboardShouldPersistTaps="always" nestedScrollEnabled>
             {matches.length ? matches.map((it, i) => (
               // 追加済みのものも一覧に残し、右端に「追加済み」と出す。押しても足さない
-              <Pressable key={it.key} disabled={it.added} onPress={() => { onPick(it); setText(''); input.current?.focus(); }}
+              <Pressable key={it.key} disabled={it.added} onPress={() => pick(it)}
                 accessibilityRole="button" accessibilityState={{ disabled: !!it.added }}
                 style={({ hovered, pressed }: { hovered?: boolean; pressed: boolean }) => ({
                   flexDirection: 'row', alignItems: 'center', gap: s(8),
