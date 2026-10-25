@@ -353,6 +353,61 @@ export function SkillSlider({ value, onChange }: { value: number; onChange?: (v:
     startLabel="1" endLabel="9" label="実力" valueText={String(value)} />;
 }
 
+// 熱量を5つの点で見せる。いまの段階まで塗り、onChange があれば点を押して変えられる
+export function HeatDots({ value, onChange }: { value: number; onChange?: (v: number) => void }) {
+  const { s } = useLayout();
+  const color = C.heat[value];
+  return (
+    <Row gap={8} style={{ flexWrap: 'wrap' }}>
+      <View accessible={!onChange} accessibilityRole={onChange ? 'radiogroup' : 'text'}
+        accessibilityLabel={onChange ? '熱量' : `熱量：${HEAT[value]}`}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: s(onChange ? 0 : 4) }}>
+        {HEAT.map((h, i) => {
+          const dot = <View style={{
+            width: s(16), height: s(16), borderRadius: s(8), backgroundColor: i <= value ? color : 'transparent',
+            borderWidth: i <= value ? 0 : 1.5, borderColor: C.line,
+            ...(i === value ? { outlineWidth: s(3), outlineStyle: 'solid', outlineColor: C.accentSoft } : null),
+          }} />;
+          return onChange ? (
+            <Pressable key={h} onPress={() => onChange(i)} accessibilityRole="radio" accessibilityLabel={`熱量：${h}`}
+              accessibilityState={{ checked: i === value }} hitSlop={2}
+              style={({ pressed }) => ({ padding: s(3), borderRadius: s(12), backgroundColor: pressed ? C.accentSoft : 'transparent' })}>
+              {dot}
+            </Pressable>
+          ) : <View key={h}>{dot}</View>;
+        })}
+      </View>
+      <Txt size={13} weight="bold" color={color}>{HEAT[value]}</Txt>
+    </Row>
+  );
+}
+
+// 実力 1〜9 を数字と −／＋ で見せる。onChange がなければ数字だけ
+export function SkillStepper({ value, onChange }: { value: number; onChange?: (v: number) => void }) {
+  const { s } = useLayout();
+  const step = (d: number, icon: 'minus' | 'plus', label: string) => {
+    const next = value + d;
+    const off = next < SKILLS[0] || next > SKILLS[SKILLS.length - 1];
+    return (
+      <Pressable onPress={() => onChange?.(next)} disabled={off} accessibilityRole="button" accessibilityLabel={label}
+        accessibilityState={{ disabled: off }} hitSlop={4}
+        style={({ pressed }) => ({ width: s(24), height: s(24), borderRadius: s(12), borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? C.accentSoft : C.card, opacity: off ? 0.35 : 1 })}>
+        <Feather name={icon} size={s(12)} color={C.ink} />
+      </Pressable>
+    );
+  };
+  return (
+    <Row gap={6}>
+      <Txt size={12} color={C.muted}>実力</Txt>
+      {onChange ? step(-1, 'minus', '実力を1下げる') : null}
+      <View accessible accessibilityLabel={`実力：${value}（9段階）`}>
+        <Txt size={14} weight="bold">{value}<Txt size={12} color={C.muted}> / 9</Txt></Txt>
+      </View>
+      {onChange ? step(1, 'plus', '実力を1上げる') : null}
+    </Row>
+  );
+}
+
 /* ---------- 権利の表示 ---------- */
 
 // ゲームの名前と画像の出どころと権利（app-11、app-22）
