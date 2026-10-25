@@ -76,7 +76,7 @@ export function FitModal({ title, onClose, children, footer }: {
               <Txt size={18} weight="display" style={{ flex: 1 }}>{title}</Txt>
               <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="閉じる" hitSlop={10}><Txt size={22} color={C.muted}>×</Txt></Pressable>
             </Row>
-            <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ padding: s(18), paddingTop: s(12) }} keyboardShouldPersistTaps="handled">
+            <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ padding: s(18), paddingTop: s(12) }} keyboardShouldPersistTaps="always">
               {children}
             </ScrollView>
             {footer ? (
