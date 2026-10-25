@@ -13,7 +13,7 @@ import { AddModal, type AddKind } from '../AddModal';
 import { C, useLayout } from '../theme';
 import {
   AppBar, Art, Avatar, Block, Card, Chip, Cols, Divider, Empty, Field, Grid, HeatSlider, HeatTag, MainButton,
-  HeatDots, MiniButton, Note, Opts, PillButton, RightsNote, Row, SkillStepper, Stack, SubButton, TextButton, Trust, Txt,
+  MiniButton, Note, Opts, PillButton, RightsNote, Row, SkillSlider, Stack, SubButton, TextButton, Trust, Txt,
 } from '../ui';
 
 /* ---------- 自分のプロフィール ---------- */
@@ -136,32 +136,38 @@ function TimesCard({ times, region, embedded }: { times: { start: string; end: s
   return embedded ? content : <Card pad>{content}</Card>;
 }
 
-// ゲーム1つ。画像の右に、名前・機種・実力・熱量を詰めて並べる。自分のゲームなら、熱量の点と実力の −／＋ でその場で変えられる
+// ゲーム1つ。画像と基本情報の下に、目盛りつきの熱量・実力ゲージを並べる。
 function GameCard({ g, onRecruit, onSkill, onHeat, showSteam = true }: {
   g: MyGame; onRecruit?: () => void; onSkill?: (v: number) => void; onHeat?: (v: number) => void; showSteam?: boolean;
 }) {
   const { s } = useLayout();
   const meta = [g.platform, showSteam && g.steam ? `Steam ${g.steam.hours}時間` : null].filter(Boolean).join(' ・ ');
   return (
-    <Card style={{ paddingVertical: s(10), paddingHorizontal: s(12) }}>
-      <Row gap={12} style={{ alignItems: 'center' }}>
-        <Art tag={g.tag} size={36} />
-        <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-          <Row gap={6}>
-            <Txt size={15} weight="bold" numberOfLines={1} style={{ flex: 1, minWidth: 0 }}>{GAMES[g.tag].name}</Txt>
-            {onRecruit ? (
-              <Pressable onPress={onRecruit} accessibilityRole="link" accessibilityLabel={`${GAMES[g.tag].name}の募集を出す`} hitSlop={6}>
-                <Row gap={3} style={{ paddingHorizontal: s(4), minHeight: s(24) }}><Feather name="plus" size={s(14)} color={C.accent} /><Txt size={12} weight="bold" color={C.accent}>募集</Txt></Row>
-              </Pressable>
-            ) : null}
-          </Row>
-          <Row gap={10} wrap>
-            <Note style={{ flexShrink: 1 }}>{meta}</Note>
-            <SkillStepper value={g.skill} onChange={onSkill} />
-          </Row>
-          <HeatDots value={g.heat} onChange={onHeat} />
+    <Card style={{ paddingVertical: s(12), paddingHorizontal: s(12) }}>
+      <Stack gap={8}>
+        <Row gap={12}>
+          <Art tag={g.tag} size={36} />
+          <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
+            <Row gap={6}>
+              <Txt size={15} weight="bold" numberOfLines={1} style={{ flex: 1, minWidth: 0 }}>{GAMES[g.tag].name}</Txt>
+              {onRecruit ? (
+                <Pressable onPress={onRecruit} accessibilityRole="link" accessibilityLabel={`${GAMES[g.tag].name}の募集を出す`} hitSlop={6}>
+                  <Row gap={3} style={{ paddingHorizontal: s(4), minHeight: s(24) }}><Feather name="plus" size={s(14)} color={C.accent} /><Txt size={12} weight="bold" color={C.accent}>募集</Txt></Row>
+                </Pressable>
+              ) : null}
+            </Row>
+            <Note>{meta}</Note>
+          </Stack>
+        </Row>
+        <Stack gap={0}>
+          <Row style={{ justifyContent: 'space-between' }}><Txt size={13} weight="bold">熱量</Txt><HeatTag value={g.heat} /></Row>
+          <HeatSlider value={g.heat} onChange={onHeat} />
         </Stack>
-      </Row>
+        <Stack gap={0}>
+          <Row><Txt size={13} weight="bold" style={{ flex: 1 }}>実力</Txt><Txt size={14} weight="bold">{g.skill}</Txt><Note>/ 9</Note></Row>
+          <SkillSlider value={g.skill} onChange={onSkill} />
+        </Stack>
+      </Stack>
     </Card>
   );
 }
