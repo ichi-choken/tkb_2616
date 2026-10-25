@@ -311,46 +311,48 @@ export function Empty({ title, text, button }: { title: string; text: string; bu
 /* ---------- 段階を選ぶスライダー ---------- */
 
 // 表示は細いバー、編集時だけつまみを出す。段階ごとのタップ・キーボード選択を保つ。
-function StepSlider({ count, value, color, onChange, startLabel, endLabel, label, valueText }: {
-  count: number; value: number; color: string; onChange?: (v: number) => void;
-  startLabel: string; endLabel: string; label: string; valueText: string;
+function StepSlider({ labels, value, color, onChange, label, valueText }: {
+  labels: readonly string[]; value: number; color: string; onChange?: (v: number) => void;
+  label: string; valueText: string;
 }) {
   const { s } = useLayout();
+  const count = labels.length;
   const fraction = Math.max(0, Math.min(count - 1, value)) / (count - 1);
   const position = `${fraction * 100}%` as const;
   return (
-    <Row gap={8}>
-      <Txt size={11} color={C.muted} style={{ width: s(34) }}>{startLabel}</Txt>
-      <View style={{ flex: 1, height: s(onChange ? 36 : 14), justifyContent: 'center' }}
+    <Stack gap={0}>
+      <View style={{ height: s(onChange ? 30 : 14), justifyContent: 'center' }}
         accessible={!onChange} accessibilityRole={onChange ? 'radiogroup' : 'text'}
         accessibilityLabel={onChange ? label : `${label}：${valueText}`}>
-        <View pointerEvents="none" style={{ position: 'absolute', left: onChange ? `${50 / count}%` : 0, right: onChange ? `${50 / count}%` : 0, height: s(4), borderRadius: s(2), backgroundColor: C.line }}>
+        <View pointerEvents="none" style={{ position: 'absolute', left: `${50 / count}%`, right: `${50 / count}%`, height: s(4), borderRadius: s(2), backgroundColor: C.line }}>
           <View style={{ width: position, height: '100%', borderRadius: s(2), backgroundColor: color }} />
           {onChange ? <View style={{ position: 'absolute', left: position, top: s(-6), marginLeft: s(-8), width: s(16), height: s(16), borderRadius: s(8), borderWidth: 2, borderColor: color, backgroundColor: C.card }} /> : null}
         </View>
         {onChange ? <View style={{ flexDirection: 'row', height: '100%' }}>
           {Array.from({ length: count }, (_, i) => (
             <Pressable key={i} onPress={() => onChange(i)} accessibilityRole="radio"
-              accessibilityLabel={`${label}：${label === '熱量' ? HEAT[i] : i + 1}`} accessibilityState={{ checked: i === value }}
+              accessibilityLabel={`${label}：${labels[i]}`} accessibilityState={{ checked: i === value }}
               style={({ pressed }) => ({ flex: 1, height: '100%', borderRadius: s(4), backgroundColor: pressed ? C.accentSoft : 'transparent' })} />
           ))}
         </View> : null}
       </View>
-      <Txt size={11} color={C.muted} style={{ width: s(34), textAlign: 'right' }}>{endLabel}</Txt>
-    </Row>
+      <Row gap={0}>
+        {labels.map((text, i) => <Txt key={i} size={11} color={C.muted} style={{ flex: 1, textAlign: 'center' }}>{text}</Txt>)}
+      </Row>
+    </Stack>
   );
 }
 
 // 熱量のスライダーは、ゆるい→ガチの順に並ぶ（profile-5）
 export function HeatSlider({ value, onChange }: { value: number; onChange?: (v: number) => void }) {
-  return <StepSlider count={HEAT.length} value={value} color={C.heat[value]} onChange={onChange}
-    startLabel="ゆるい" endLabel="ガチ" label="熱量" valueText={HEAT[value]} />;
+  return <StepSlider labels={HEAT} value={value} color={C.heat[value]} onChange={onChange}
+    label="熱量" valueText={HEAT[value]} />;
 }
 
 // 実力は1〜9。大きいほど上手い（ADR-75）
 export function SkillSlider({ value, onChange }: { value: number; onChange?: (v: number) => void }) {
-  return <StepSlider count={SKILLS.length} value={value - 1} color={C.accent} onChange={onChange ? (i) => onChange(i + 1) : undefined}
-    startLabel="1" endLabel="9" label="実力" valueText={String(value)} />;
+  return <StepSlider labels={SKILLS.map(String)} value={value - 1} color={C.accent} onChange={onChange ? (i) => onChange(i + 1) : undefined}
+    label="実力" valueText={String(value)} />;
 }
 
 /* ---------- 権利の表示 ---------- */
