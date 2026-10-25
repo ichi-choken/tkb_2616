@@ -18,6 +18,7 @@ import { steamTrustOf, type UserSteamTrust } from '../lib/trust';
 import { rememberReturn } from './return-to';
 import { createRecruitmentDraftStore, exactSavedGame, gameRouteInput, type RecruitmentDraft } from './create-draft';
 import { createOperation } from './operation';
+import { orderByCloseSkill, profileSkillFor, vcMatch } from './match-order';
 import {
   applicationsFor, applyToRecruitment, approveApplication, changeRecruitment, failureText, gameAccountIdOf, getGame,
   getRecruitment, isAccepting, isFinished, meetingFor, myApplicationFor, myApplications, myApplicationsIn, myRecruitments,
@@ -682,9 +683,12 @@ const nameOf = (a: Application) => a.profiles?.nickname || gameAccountIdOf(a) ||
 /* ---------- 募集一覧（参加する人） ---------- */
 
 function ListScreen({ params }: Params) {
-  const { go, open } = useStore();
+  const { go, open, s } = useStore();
   const uid = useUserId();
   const first = params.r ?? null;
+  // My skill and VC for ordering (list-3, ADR-91). undefined = not picked yet, so the profile's skill is used
+  const [skillPick, setSkillPick] = useState<number | null | undefined>(undefined);
+  const [myVc, setMyVc] = useState<(typeof VC)[number] | null>(null);
   const [data, setData] = useState<{ gameId: number | null; items: Recruitment[]; mine: Record<string, Application> } | null>(null);
   const [error, setError] = useState(false);
   const load = useCallback(async () => {
@@ -704,15 +708,27 @@ function ListScreen({ params }: Params) {
   if (!data.items.length) return <Stack><AppBar title="募集一覧" /><Card><Empty title="このゲームの募集はまだありません" text="自分で募集を出すこともできます。" button={{ label: '募集を出す', onPress: () => go('create', data.gameId != null ? { game: String(data.gameId) } : undefined) }} /></Card></Stack>;
   const pinned = first ? data.items.find(r => r.id === first) ?? null : null;
   const rest = data.items.filter(r => r !== pinned);
-  const openOnes = rest.filter(r => isAccepting(r.status));
+  // Others are ordered by how close their skill is to mine (list-5, server-52, ADR-91)
+  const mySkill = skillPick === undefined ? profileSkillFor(game?.name, s.me.games, GAMES) : skillPick;
+  const openOnes = orderByCloseSkill(rest.filter(r => isAccepting(r.status)), mySkill);
   // Finished recruitments are listed separately below (list-11)
-  const ended = rest.filter(r => !isAccepting(r.status));
-  const card = (r: Recruitment, pin = false) => <ListingCard key={r.id} r={r} pinned={pin} uid={uid} mine={data.mine[r.id]} trust={trust[r.owner_id]} />;
+  const ended = orderByCloseSkill(rest.filter(r => !isAccepting(r.status)), mySkill);
+  const card = (r: Recruitment, pin = false) => <ListingCard key={r.id} r={r} pinned={pin} uid={uid} mine={data.mine[r.id]} trust={trust[r.owner_id]} vc={vcMatch(r.voice_chat, myVc)} />;
 
   return (
     <Stack>
       <AppBar title={`${game?.name ?? 'ゲーム'}の募集`} lead={<GameArt game={game} size={26} />} right={<Badge label={`${openOnes.length + (pinned && isAccepting(pinned.status) ? 1 : 0)}件`} tone="ok" />} />
       <Note>登録しなくても見られます。「参加したい」を押すときはログインします。</Note>
+      {/* My skill and VC (list-3, ADR-91) */}
+      <Card pad><Stack gap={8}>
+        <Txt size={14} weight="bold">自分の条件</Txt>
+        <Row gap={6} wrap style={{ alignItems: 'center' }}>
+          <Txt size={13}>実力</Txt><Txt size={14} weight="bold">{mySkill ?? '未選択'}</Txt><Note>/ 9 ・ 近い募集から並びます</Note>
+          {mySkill != null ? <TextButton label="選ばない" onPress={() => setSkillPick(null)} /> : null}
+        </Row>
+        <SkillSlider value={mySkill ?? 5} onChange={v => setSkillPick(v)} />
+        <Row gap={6} wrap style={{ alignItems: 'center' }}><Txt size={13}>VC</Txt><Choice items={VC} value={myVc} onChange={setMyVc} none="気にしない" /></Row>
+      </Stack></Card>
       {/* The pressed link's recruitment comes first (list-4) */}
       {pinned ? <Block title="押した募集"><Grid>{[card(pinned, true)]}</Grid></Block> : null}
       <Block title={pinned ? '同じゲームのほかの募集' : '今出ている募集'}>
@@ -732,7 +748,7 @@ function ListScreen({ params }: Params) {
   );
 }
 
-function ListingCard({ r, pinned, uid, mine, trust }: { r: Recruitment; pinned: boolean; uid: string | null | undefined; mine: Application | undefined; trust: string | undefined }) {
+function ListingCard({ r, pinned, uid, mine, trust, vc }: { r: Recruitment; pinned: boolean; uid: string | null | undefined; mine: Application | undefined; trust: string | undefined; vc: 'match' | 'mismatch' | null }) {
   const { go, toast } = useStore();
   const [opened, setOpened] = useState(false);
   const [gameId, setGameId] = useState('');
@@ -770,6 +786,8 @@ function ListingCard({ r, pinned, uid, mine, trust }: { r: Recruitment; pinned: 
         <Row gap={10} wrap>
           {r.platform ? <Note>{r.platform}</Note> : null}{r.voice_chat ? <Note>VC{r.voice_chat}</Note> : null}
           {r.mode ? <Note>{r.mode}</Note> : null}{r.skill != null ? <Note>実力 {r.skill}</Note> : null}{heat != null ? <HeatTag value={heat} /> : null}
+          {/* Whether the VC matches mine, only when both chose (list-8) */}
+          {vc === 'match' ? <Badge label="VCが合う" tone="ok" /> : vc === 'mismatch' ? <Badge label="VCが合わない" tone="warn" /> : null}
         </Row>
         <Row style={{ justifyContent: 'space-between' }}><Trust value={trust} />{action}</Row>
         {opened && !mine ? (
