@@ -1,5 +1,5 @@
 // プロフィール：自分のプロフィール、編集、他の人のプロフィール、IDで探す
-import { useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useRef, useState, useSyncExternalStore } from 'react';
 import { Pressable, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import {
@@ -14,18 +14,18 @@ import { FitModal } from '../FitModal';
 import { C, useLayout } from '../theme';
 import {
   AppBar, Art, Avatar, Block, Card, Chip, Cols, Divider, Empty, Field, Grid, HeatSlider, HeatTag, MainButton,
-  MiniButton, Note, Opts, PillButton, RightsNote, Row, SkillSlider, Stack, SubButton, TextButton, Trust, Txt,
+  MiniButton, Note, Opts, PillButton, Row, SkillSlider, Stack, SubButton, TextButton, Trust, Txt,
 } from '../ui';
 
 /* ---------- 自分のプロフィール ---------- */
 
-export function ProfileScreen({ supplement }: { supplement?: ReactNode }) {
+export function ProfileScreen() {
   const { s: st } = useStore();
-  return st.draft ? <ProfileEdit /> : <ProfileView supplement={supplement} />;
+  return st.draft ? <ProfileEdit /> : <ProfileView />;
 }
 
-function ProfileView({ supplement }: { supplement?: ReactNode }) {
-  const { s: st, update, editProfile, go, copy, toast, open } = useStore();
+function ProfileView() {
+  const { s: st, update, editProfile, go, copy, toast } = useStore();
   const settings = useSyncExternalStore(demoSettings.subscribe, demoSettings.getSnapshot, demoSettings.getSnapshot);
   const [adding, setAdding] = useState<AddKind | null>(null);
   const { wide, width, s, design } = useLayout();
@@ -141,7 +141,6 @@ function ProfileView({ supplement }: { supplement?: ReactNode }) {
           </Stack>
         </View>
       </Card>
-      {supplement}
       <Block title="ゲーム" count={p.games.length} right={<MiniButton label="＋ 追加" onPress={() => setAdding('games')} />}>
         {p.games.length ? <Grid columns={wide ? (width >= 1100 ? 3 : 2) : 1}>{p.games.map((g) => (
           <GameCard key={g.tag} g={g} showSteam={steamProfileVisible(settings)}
@@ -154,7 +153,6 @@ function ProfileView({ supplement }: { supplement?: ReactNode }) {
         )}
       </Block>
       <Cols even left={hobbies} right={likes} />
-      <RightsNote onOpen={open} />
       <AddModal kind={adding} onClose={() => setAdding(null)} />
       {removing ? <FitModal title="プロフィールから削除" onClose={closeRemove} footer={
         <Row style={{ justifyContent: 'flex-end' }}>
@@ -390,7 +388,7 @@ function ProfileEdit() {
 /* ---------- 他の人のプロフィール（あなたと同じ・フレンド申請） ---------- */
 
 export function PersonScreen({ id }: { id?: string }) {
-  const { s: st, update, go, toast, open } = useStore();
+  const { s: st, update, go, toast } = useStore();
   const p = isPersonId(id) ? PEOPLE[id] : null;
   if (!p) {
     return (
@@ -445,7 +443,6 @@ export function PersonScreen({ id }: { id?: string }) {
             <Card pad><Row gap={6} wrap>{p.likes.filter((l) => !l.locked).map((l) =>
               <Chip key={l.name} label={l.name} common={me.likes.some((m) => m.name === l.name)} />)}</Row></Card>
           </Block>
-          <RightsNote onOpen={open} />
         </>}
       />
     </Stack>

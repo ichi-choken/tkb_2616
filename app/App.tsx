@@ -1,5 +1,5 @@
 // Shumitomo のフロント（デモ）。Expo（React Native）と TypeScript で、スマホのアプリとウェブを1つのコードで作る
-import { useRef, useEffect, useState, type ComponentType, type ReactNode } from 'react';
+import { useRef, useEffect, useState, type ComponentType } from 'react';
 import { Platform, Pressable, ScrollView, View, type ScrollViewInstance } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,9 +26,9 @@ export default function App() {
 // 接続先があるとき、募集・一覧・参加の画面を本物のデータの画面に差し替える（ルートの src/live/screens.tsx）
 export type LiveScreens = Partial<Record<'recruit' | 'create' | 'requests' | 'list' | 'matched', ComponentType<{ params: Record<string, string> }>>>;
 
-type ScreenOptions = { settingsScreen: ComponentType; liveScreens?: LiveScreens; profileSupplement?: ReactNode; modeLabel?: string };
+type ScreenOptions = { settingsScreen: ComponentType; liveScreens?: LiveScreens; modeLabel?: string };
 
-export function ShumitomoApp({ settingsScreen = SettingsScreen, liveScreens, profileSupplement, modeLabel }: Omit<ScreenOptions, 'settingsScreen'> & { settingsScreen?: ComponentType }) {
+export function ShumitomoApp({ settingsScreen = SettingsScreen, liveScreens, modeLabel }: Omit<ScreenOptions, 'settingsScreen'> & { settingsScreen?: ComponentType }) {
   const { design } = useLayout();
   const [loaded] = useFonts({
     DelaGothicOne_400Regular,
@@ -40,14 +40,14 @@ export function ShumitomoApp({ settingsScreen = SettingsScreen, liveScreens, pro
   return (
     <SafeAreaProvider>
       <StoreProvider>
-        <Shell settingsScreen={settingsScreen} liveScreens={liveScreens} profileSupplement={profileSupplement} modeLabel={modeLabel} />
+        <Shell settingsScreen={settingsScreen} liveScreens={liveScreens} modeLabel={modeLabel} />
         <StatusBar style={design.dark ? 'light' : 'dark'} />
       </StoreProvider>
     </SafeAreaProvider>
   );
 }
 
-function Shell({ settingsScreen, liveScreens, profileSupplement, modeLabel }: ScreenOptions) {
+function Shell({ settingsScreen, liveScreens, modeLabel }: ScreenOptions) {
   const { s: st } = useStore();
   const { s, wide } = useLayout();
   const route = resolveRoute(st);
@@ -63,7 +63,7 @@ function Shell({ settingsScreen, liveScreens, profileSupplement, modeLabel }: Sc
       <DemoBar modeLabel={modeLabel} />
       <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: s(24) }} keyboardShouldPersistTaps="handled">
         <View style={{ width: '100%', maxWidth: 1320, alignSelf: 'center', paddingHorizontal: s(wide ? 24 : 14) }}>
-          <Screen settingsScreen={settingsScreen} liveScreens={liveScreens} profileSupplement={profileSupplement} />
+          <Screen settingsScreen={settingsScreen} liveScreens={liveScreens} />
         </View>
       </ScrollView>
       <TabBar current={ROUTE_TAB[route.name]} />
@@ -72,13 +72,13 @@ function Shell({ settingsScreen, liveScreens, profileSupplement, modeLabel }: Sc
   );
 }
 
-function Screen({ settingsScreen: Settings, liveScreens, profileSupplement }: ScreenOptions) {
+function Screen({ settingsScreen: Settings, liveScreens }: ScreenOptions) {
   const { s: st } = useStore();
   const Live = liveScreens?.[st.route.name as keyof LiveScreens];
   if (Live) return <Live params={st.route.params ?? {}} />;
   const { name, params } = resolveRoute(st);
   switch (name) {
-    case 'profile': return <ProfileScreen supplement={profileSupplement} />;
+    case 'profile': return <ProfileScreen />;
     case 'person': return <PersonScreen id={params.id} />;
     case 'search-id': return <SearchIdScreen />;
     case 'create': return <CreateScreen game={params.game} />;

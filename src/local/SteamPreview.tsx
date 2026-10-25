@@ -12,6 +12,7 @@ function playtime(minutes: number | null) {
 
 export function SteamPreview() {
   const { wide, width, s } = useLayout();
+  const [expanded, setExpanded] = useState(false);
   const [attempt, retry] = useState(0);
   const [library, setLibrary] = useState<SteamLibrary | null>(null);
   const [error, setError] = useState(false);
@@ -72,7 +73,8 @@ export function SteamPreview() {
         {library?.status === 'unavailable' ? <Note>Steamのゲーム情報を読み取れませんでした。Steamのゲーム詳細の公開設定を確認してください。</Note> : null}
       </Stack>
     </Card>
-    {library?.status === 'available' ? <Block title="Steamのゲーム" count={games.length}>
+    {library?.status === 'available' ? <SubButton label={expanded ? 'ゲーム一覧を閉じる' : `Steamのゲーム ${games.length} 件を見る`} onPress={() => setExpanded(value => !value)} /> : null}
+    {library?.status === 'available' && expanded ? <Block title="Steamのゲーム" count={games.length}>
       {games.length ? <Grid columns={wide ? (width >= 1100 ? 3 : 2) : 1}>{games.map(game => <Card key={game.appId} pad>
         <Stack gap={10}>
           <Txt size={16} weight="bold">{game.name ?? `App ${game.appId}`}</Txt>

@@ -73,7 +73,6 @@ export function ConnectedSettingsScreen({ steamOnly = false }: { steamOnly?: boo
     </Stack></Card> : null}
     <Card pad><Stack gap={6}>
       <Txt size={13} weight="bold">このアプリについて</Txt>
-      <Note>プロフィールと募集のパッケージ画像はSteam・任天堂の公式ページからの見本です。</Note>
       <TextButton label="IGDB.com（ゲーム検索の提供元）" onPress={() => open('https://www.igdb.com/')} />
     </Stack></Card>
   </>;
