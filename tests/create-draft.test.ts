@@ -9,7 +9,7 @@ function storage() {
 }
 const draft: RecruitmentDraft = {
   sourceGame: 'apex',
-  game: { id: 100, name: 'Apex Legends', cover_image_id: null, hide_cover: false, platforms: ['PC'], modes: null, needs_participant_id_default: true },
+  game: { id: 100, name: 'Apex Legends', alternative_names: [], cover_image_id: null, hide_cover: false, platforms: ['PC'], modes: null, needs_participant_id_default: true },
   pendingGameId: null, query: '', when: '2026-10-26', time: '22:15', need: 2,
   platform: 'PC（Steam）', vc: 'あり', heat: 3, skill: 7, needsId: true, mode: null,
   room: 'ROOM123', url: 'https://example.test/invite',
