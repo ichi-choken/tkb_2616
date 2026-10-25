@@ -18,10 +18,12 @@ function isProfile(value: unknown): value is Profile {
     && object(value.times) && text(value.times.start) && text(value.times.end)
     && Array.isArray(value.games) && value.games.every(game => object(game) && text(game.tag)
       && (game.tag.startsWith('steam:') ? steamTag(game.tag, game.steam) : Object.hasOwn(GAMES, game.tag) || (game.tag.startsWith('custom:') && game.tag.length > 7))
+      && (game.demo === undefined || typeof game.demo === 'boolean')
       && text(game.platform) && level(game.heat, 0, 4) && level(game.skill, 1, 9)
       && (game.steam === undefined || (object(game.steam) && (game.steam.hours === null || (typeof game.steam.hours === 'number' && Number.isFinite(game.steam.hours) && game.steam.hours >= 0)) && text(game.steam.updated)
         && (game.steam.appId === undefined || (Number.isSafeInteger(game.steam.appId) && Number(game.steam.appId) > 0))
         && (game.steam.name === undefined || text(game.steam.name)))))
+    && (value.steamDemoGamesCleared === undefined || typeof value.steamDemoGamesCleared === 'boolean')
     && (value.steamImportedAppIds === undefined || (Array.isArray(value.steamImportedAppIds) && value.steamImportedAppIds.every(id => Number.isSafeInteger(id) && id > 0)))
     && Array.isArray(value.hobbies) && value.hobbies.every(item => object(item) && text(item.name) && level(item.heat, 0, 4))
     && Array.isArray(value.likes) && value.likes.every(item => object(item) && text(item.name) && (item.locked === undefined || typeof item.locked === 'boolean'));

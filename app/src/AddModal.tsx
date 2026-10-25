@@ -167,7 +167,7 @@ export function AddModal({ kind, onClose }: { kind: AddKind | null; onClose: () 
     if (kind === 'games') {
       const t = tag ?? addCustomGame(name);
       if (target.games.some((g) => g.tag === t)) return setError(`${GAMES[t].name}はもう入っています`);
-      if (!(await edit((p) => { if (!p.games.some(g => g.tag === t)) p.games.push({ tag: t, platform: 'Switch', heat: 2, skill: 5 }); }))) return;
+      if (!(await edit((p) => { if (!p.games.some(g => g.tag === t)) p.games.push({ demo: false, tag: t, platform: 'Switch', heat: 2, skill: 5 }); }))) return;
       toast(`${GAMES[t].name}を追加しました`);
     } else {
       const list = kind === 'hobbies' ? target.hobbies : target.likes;

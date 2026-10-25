@@ -328,7 +328,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const saveGameToProfile = useCallback((f: Pick<RecruitForm, 'game' | 'platform' | 'heat' | 'skill'>) => {
     return editProfile(profile => {
       const game = profile.games.find(x => x.tag === f.game);
-      const values = { platform: f.platform, heat: f.heat, skill: f.skill };
+      const values = { demo: false, platform: f.platform, heat: f.heat, skill: f.skill };
       if (game) Object.assign(game, values);
       else profile.games.push({ tag: f.game, ...values });
     });
