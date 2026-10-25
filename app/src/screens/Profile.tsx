@@ -1,5 +1,5 @@
 // プロフィール：自分のプロフィール、編集、他の人のプロフィール、IDで探す
-import { useRef, useState, useSyncExternalStore } from 'react';
+import { useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import {
@@ -19,12 +19,12 @@ import {
 
 /* ---------- 自分のプロフィール ---------- */
 
-export function ProfileScreen() {
+export function ProfileScreen({ supplement }: { supplement?: ReactNode }) {
   const { s: st } = useStore();
-  return st.draft ? <ProfileEdit /> : <ProfileView />;
+  return st.draft ? <ProfileEdit /> : <ProfileView supplement={supplement} />;
 }
 
-function ProfileView() {
+function ProfileView({ supplement }: { supplement?: ReactNode }) {
   const { s: st, update, editProfile, go, copy, toast, open } = useStore();
   const settings = useSyncExternalStore(demoSettings.subscribe, demoSettings.getSnapshot, demoSettings.getSnapshot);
   const [adding, setAdding] = useState<AddKind | null>(null);
@@ -141,6 +141,7 @@ function ProfileView() {
           </Stack>
         </View>
       </Card>
+      {supplement}
       <Block title="ゲーム" count={p.games.length} right={<MiniButton label="＋ 追加" onPress={() => setAdding('games')} />}>
         {p.games.length ? <Grid columns={wide ? (width >= 1100 ? 3 : 2) : 1}>{p.games.map((g) => (
           <GameCard key={g.tag} g={g} showSteam={steamProfileVisible(settings)}
